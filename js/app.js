@@ -51,6 +51,12 @@
     catch (e) { console.warn('保存本地缓存失败', e); }
   }
 
+  /* 示例卡判定：id 以 demo- 开头且内容从未被编辑过（updatedAt 与种子一致） */
+  function isPristineSeed(c) {
+    if (!window.SEED || !/^demo-/.test(String(c.id))) return false;
+    return (window.SEED.cards || []).some((s) => s.id === c.id && s.updatedAt === c.updatedAt);
+  }
+
   /* 双向合并：按 id 取 updatedAt 较新者；删除用墓碑（deleted 时间戳更新则仍视为已删除） */
   function mergeData(a, b) {
     const deleted = {};
@@ -101,6 +107,12 @@
     return list;
   }
 
+  function allTags() {
+    const set = new Set();
+    for (const c of store.data.cards) for (const t of (c.tags || [])) if (t) set.add(t);
+    return set;
+  }
+
   function cardHTML(c) {
     const tags = (c.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
     const diff = c.difficulty
@@ -132,19 +144,20 @@
     );
   }
 
-  function renderFilters() {
-    const set = new Set();
-    for (const c of store.data.cards) for (const t of (c.tags || [])) if (t) set.add(t);
-    const names = ['全部'].concat(Array.from(set).sort((a, b) => a.localeCompare(b, 'zh')));
+  function renderFilters(tags) {
+    const names = ['全部'].concat(Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh')));
     $('#filters').innerHTML = names.map((n) =>
       '<button class="fchip' + (n === store.tag ? ' on' : '') + '" data-tag="' + esc(n) + '" type="button">' + esc(n) + '</button>'
     ).join('');
   }
 
   function render() {
-    renderFilters();
+    const tags = allTags();
+    if (store.tag !== '全部' && !tags.has(store.tag)) store.tag = '全部';   // 筛选中的标签已被删光 → 回到全部
+    renderFilters(tags);
     const list = visibleCards();
-    $('#count').textContent = '共 ' + list.length + ' 张';
+    const total = store.data.cards.length;
+    $('#count').textContent = list.length === total ? ('共 ' + total + ' 张') : (list.length + ' / ' + total + ' 张');
     const grid = $('#grid');
     if (!list.length) {
       grid.innerHTML = store.data.cards.length
@@ -201,7 +214,11 @@
   function bindGrid() {
     $('#grid').addEventListener('click', async (e) => {
       const bodyEl = e.target.closest('.cbody');
-      if (bodyEl && !e.target.closest('button')) { bodyEl.classList.toggle('open'); return; }
+      if (bodyEl && !e.target.closest('button')) {
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.isCollapsed) bodyEl.classList.toggle('open');   // 正在选中文字时不切换展开
+        return;
+      }
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const cardEl = btn.closest('.card');
@@ -314,7 +331,7 @@
     GH.saveCfg(cfg);
     closeModals();
     toast('设置已保存 ✓');
-    if (cfg.token) syncAll(false);
+    if (cfg.owner && cfg.repo) syncAll(false);   // 配了 Token 会推送；没配则拉取
   }
 
   async function testConn() {
@@ -375,10 +392,15 @@
     const btn = $('#btn-sync');
     btn.classList.add('spin');
     btn.disabled = true;
+    let needResync = false;
     try {
       const localSnapshot = JSON.parse(JSON.stringify(store.data));   // 快照，防止网络等待期间的本地改动丢失
       const remote = await GH.getFile(cfg);
       const remoteData = remote ? normalizeDeck(JSON.parse(remote.text)) : { cards: [], deleted: {} };
+      if (remote) {
+        /* 远端已有数据：从未被编辑过的示例卡不参与合并，避免新设备首开时把示例混进真实题库 */
+        localSnapshot.cards = localSnapshot.cards.filter((c) => !isPristineSeed(c));
+      }
       const merged = mergeData(localSnapshot, remoteData);
 
       if (cfg.token) {
@@ -392,8 +414,10 @@
           'sync: ' + merged.cards.length + ' 张卡片 @ ' + fmtNow());
         /* 与「当前」本地数据再合并一次：同步期间的新增 / 编辑 / 删除不会被覆盖 */
         store.data = mergeData(merged, store.data);
+        const midEdits = JSON.stringify(store.data) !== JSON.stringify(merged);
         saveData();
-        store.dirty = JSON.stringify(store.data) !== JSON.stringify(merged);
+        store.dirty = midEdits;
+        needResync = midEdits;   // 同步期间又有改动 → 追加一轮同步把它们推上去
         render();
         if (!silent) toast('已与 GitHub 同步 ✓');
       } else {
@@ -414,6 +438,7 @@
       btn.classList.remove('spin');
       btn.disabled = false;
       updateSyncBadge();
+      if (needResync) setTimeout(() => { if (!syncing) syncAll(silent); }, 600);
     }
   }
 
@@ -422,7 +447,12 @@
     $('#btn-add').addEventListener('click', () => openAddModal(null));
     $('#btn-sync').addEventListener('click', () => syncAll(false));
     $('#btn-settings').addEventListener('click', openSettings);
-    $('#search').addEventListener('input', (e) => { store.query = e.target.value; render(); });
+    let searchTimer = null;
+    $('#search').addEventListener('input', (e) => {
+      store.query = e.target.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(render, 150);   // 卡片较多时避免每个按键都全量重绘
+    });
 
     $('#filters').addEventListener('click', (e) => {
       const b = e.target.closest('.fchip');
@@ -460,13 +490,26 @@
     }
 
     if (!loaded) {
-      let seed = null;
-      try {
-        const res = await fetch('data/cards.json', { cache: 'no-store' });
-        if (res.ok) seed = await res.json();
-      } catch (e) { /* file:// 下 fetch 受限，走内置兜底数据 */ }
-      if (!seed && window.SEED) seed = window.SEED;
-      store.data = normalizeDeck(seed);
+      /* 已配置仓库 → 优先拉取远端，避免把示例卡当作本地数据；拉不到才回退到示例 */
+      const cfg0 = GH.cfg();
+      let remoteData = null;
+      if (cfg0 && cfg0.owner && cfg0.repo) {
+        try {
+          const remote = await GH.getFile(cfg0);
+          if (remote) remoteData = normalizeDeck(JSON.parse(remote.text));
+        } catch (e) { console.warn('首次加载拉取远端失败，先用示例数据', e); }
+      }
+      if (remoteData) {
+        store.data = remoteData;
+      } else {
+        let seed = null;
+        try {
+          const res = await fetch('data/cards.json', { cache: 'no-store' });
+          if (res.ok) seed = await res.json();
+        } catch (e) { /* file:// 下 fetch 受限，走内置兜底数据 */ }
+        if (!seed && window.SEED) seed = window.SEED;
+        store.data = normalizeDeck(seed);
+      }
       saveData();
     }
 

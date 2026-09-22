@@ -80,7 +80,7 @@ body {
 .chip.mid  { background: rgba(255, 159, 10, .18); color: #b26205; }
 .chip.hard { background: rgba(255, 69, 58, .15); color: #d93025; }
 .cmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 2px; }
-.tag { font-size: 11.5px; padding: 2px 9px; border-radius: 999px; background: rgba(10, 132, 255, .10); color: #0a6bff; border: 1px solid rgba(10, 132, 255, .18); }
+.tag { font-size: 11.5px; padding: 2px 9px; border-radius: 999px; background: rgba(10, 132, 255, .10); color: #0a6bff; border: 1px solid rgba(10, 132, 255, .18); overflow-wrap: anywhere; }
 .cdate { margin-left: auto; font-size: 11.5px; opacity: .55; }
 .cbody {
   white-space: pre-wrap; word-break: break-word;
