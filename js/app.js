@@ -57,6 +57,18 @@
     return (window.SEED.cards || []).some((s) => s.id === c.id && s.updatedAt === c.updatedAt);
   }
 
+  /* 与顺序无关的数据指纹：判断「有没有实际变化」。
+     若直接 stringify 比较，卡片顺序不同但内容相同会误判为有改动，
+     导致空提交甚至无限补传循环 */
+  function fingerprint(deck) {
+    const sortedDeleted = {};
+    for (const k of Object.keys(deck.deleted).sort()) sortedDeleted[k] = deck.deleted[k];
+    return JSON.stringify({
+      cards: deck.cards.map((c) => c.id + '|' + (c.updatedAt || '')).sort(),
+      deleted: sortedDeleted
+    });
+  }
+
   /* 双向合并：按 id 取 updatedAt 较新者；删除用墓碑（deleted 时间戳更新则仍视为已删除） */
   function mergeData(a, b) {
     const deleted = {};
@@ -404,24 +416,33 @@
       const merged = mergeData(localSnapshot, remoteData);
 
       if (cfg.token) {
-        const text = JSON.stringify({
-          version: 1,
-          updatedAt: new Date().toISOString(),
-          cards: merged.cards,
-          deleted: merged.deleted
-        }, null, 2) + '\n';
-        await GH.putFile(cfg, text, remote ? remote.sha : undefined,
-          'sync: ' + merged.cards.length + ' 张卡片 @ ' + fmtNow());
-        /* 与「当前」本地数据再合并一次：同步期间的新增 / 编辑 / 删除不会被覆盖 */
-        store.data = mergeData(merged, store.data);
-        const midEdits = JSON.stringify(store.data) !== JSON.stringify(merged);
+        /* 内容与远端一致时不推送，避免每次打开页面都产生空提交 */
+        const unchanged = !!remote && fingerprint(merged) === fingerprint(remoteData);
+        if (!unchanged) {
+          const text = JSON.stringify({
+            version: 1,
+            updatedAt: new Date().toISOString(),
+            cards: merged.cards,
+            deleted: merged.deleted
+          }, null, 2) + '\n';
+          await GH.putFile(cfg, text, remote ? remote.sha : undefined,
+            'sync: ' + merged.cards.length + ' 张卡片 @ ' + fmtNow());
+        }
+        /* 与「当前」本地数据再合并一次：同步期间的新增 / 编辑 / 删除不会被覆盖。
+           当前本地的未编辑示例卡同样剔除，保证状态收敛、不会反复触发补传 */
+        const current = JSON.parse(JSON.stringify(store.data));
+        if (remote) current.cards = current.cards.filter((c) => !isPristineSeed(c));
+        store.data = mergeData(merged, current);
+        const midEdits = !unchanged && fingerprint(store.data) !== fingerprint(merged);
         saveData();
         store.dirty = midEdits;
         needResync = midEdits;   // 同步期间又有改动 → 追加一轮同步把它们推上去
         render();
-        if (!silent) toast('已与 GitHub 同步 ✓');
+        if (!silent) toast(unchanged ? '已与 GitHub 一致 ✓' : '已与 GitHub 同步 ✓');
       } else {
-        store.data = mergeData(merged, store.data);
+        const current = JSON.parse(JSON.stringify(store.data));
+        if (remote) current.cards = current.cards.filter((c) => !isPristineSeed(c));
+        store.data = mergeData(merged, current);
         saveData();
         render();
         if (!silent) {
@@ -490,26 +511,15 @@
     }
 
     if (!loaded) {
-      /* 已配置仓库 → 优先拉取远端，避免把示例卡当作本地数据；拉不到才回退到示例 */
-      const cfg0 = GH.cfg();
-      let remoteData = null;
-      if (cfg0 && cfg0.owner && cfg0.repo) {
-        try {
-          const remote = await GH.getFile(cfg0);
-          if (remote) remoteData = normalizeDeck(JSON.parse(remote.text));
-        } catch (e) { console.warn('首次加载拉取远端失败，先用示例数据', e); }
-      }
-      if (remoteData) {
-        store.data = remoteData;
-      } else {
-        let seed = null;
-        try {
-          const res = await fetch('data/cards.json', { cache: 'no-store' });
-          if (res.ok) seed = await res.json();
-        } catch (e) { /* file:// 下 fetch 受限，走内置兜底数据 */ }
-        if (!seed && window.SEED) seed = window.SEED;
-        store.data = normalizeDeck(seed);
-      }
+      /* 无缓存 → 立即用示例数据渲染（保证首屏速度）；
+         若配置了仓库，随后的自动同步会拉取远端并剔除未编辑的示例卡 */
+      let seed = null;
+      try {
+        const res = await fetch('data/cards.json', { cache: 'no-store' });
+        if (res.ok) seed = await res.json();
+      } catch (e) { /* file:// 下 fetch 受限，走内置兜底数据 */ }
+      if (!seed && window.SEED) seed = window.SEED;
+      store.data = normalizeDeck(seed);
       saveData();
     }
 

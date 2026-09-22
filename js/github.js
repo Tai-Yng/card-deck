@@ -26,7 +26,10 @@
       catch (e) { return null; }
     },
 
-    saveCfg(c) { localStorage.setItem(this.CFG_KEY, JSON.stringify(c)); },
+    saveCfg(c) {
+      try { localStorage.setItem(this.CFG_KEY, JSON.stringify(c)); }
+      catch (e) { console.warn('保存设置失败（浏览器隐私模式？）', e); }
+    },
 
     _url(c, withRef) {
       const path = String(c.path || 'data/cards.json').split('/').filter(Boolean)
