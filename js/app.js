@@ -27,7 +27,7 @@
     if (d && Array.isArray(d.cards)) {
       for (const c of d.cards) {
         if (c && c.id && c.title) {
-          out.cards.push({
+          const nc = {
             id: String(c.id),
             title: String(c.title),
             difficulty: c.difficulty ? String(c.difficulty) : '',
@@ -36,7 +36,16 @@
             body: c.body ? String(c.body) : '',
             code: c.code ? String(c.code) : '',
             updatedAt: c.updatedAt ? String(c.updatedAt) : ''
-          });
+          };
+          /* 复习进度（可选）：box 阶段 1-6 + 到期时间 + 最近评分时间 */
+          if (c.review && typeof c.review === 'object' && typeof c.review.box === 'number' && c.review.due) {
+            nc.review = {
+              box: Math.min(6, Math.max(1, Math.round(c.review.box))),
+              due: String(c.review.due),
+              last: c.review.last ? String(c.review.last) : ''
+            };
+          }
+          out.cards.push(nc);
         }
       }
     }
@@ -64,9 +73,18 @@
     const sortedDeleted = {};
     for (const k of Object.keys(deck.deleted).sort()) sortedDeleted[k] = deck.deleted[k];
     return JSON.stringify({
-      cards: deck.cards.map((c) => c.id + '|' + (c.updatedAt || '')).sort(),
+      cards: deck.cards.map((c) => c.id + '|' + (c.updatedAt || '') + '|' + (c.review ? c.review.box + '@' + (c.review.due || '') : '')).sort(),
       deleted: sortedDeleted
     });
+  }
+
+  /* 卡片新旧裁决：先比 updatedAt（内容编辑），相同再比 review.last（评分不改动 updatedAt） */
+  function cardNewer(x, y) {
+    const xu = String(x.updatedAt || ''), yu = String(y.updatedAt || '');
+    if (xu !== yu) return xu > yu;
+    const xr = (x.review && x.review.last) || '';
+    const yr = (y.review && y.review.last) || '';
+    return xr > yr;
   }
 
   /* 双向合并：按 id 取 updatedAt 较新者；删除用墓碑（deleted 时间戳更新则仍视为已删除） */
@@ -78,10 +96,10 @@
     }
     const map = new Map();
     for (const c of b.cards) {
-      if (!map.has(c.id) || String(c.updatedAt) > String(map.get(c.id).updatedAt)) map.set(c.id, c);
+      if (!map.has(c.id) || cardNewer(c, map.get(c.id))) map.set(c.id, c);
     }
     for (const c of a.cards) {
-      if (!map.has(c.id) || String(c.updatedAt) > String(map.get(c.id).updatedAt)) map.set(c.id, c);
+      if (!map.has(c.id) || cardNewer(c, map.get(c.id))) map.set(c.id, c);
     }
     const cards = [];
     for (const c of map.values()) {
@@ -91,6 +109,55 @@
       cards.push(c);
     }
     return { cards: cards, deleted: deleted };
+  }
+
+  /* ---------- 间隔复习（艾宾浩斯 / Leitner 盒子法） ---------- */
+  const RV_DAYS = [1, 2, 4, 7, 15, 30];   // 各阶段间隔天数
+
+  function nextReview(prev, rate, nowMs) {
+    const p = (prev && typeof prev.box === 'number') ? prev.box : 0;
+    let box;
+    if (rate === 'good') box = Math.min(6, p + 1);
+    else if (rate === 'ok') box = Math.max(1, p);
+    else box = 1;
+    return { box: box, due: new Date(nowMs + RV_DAYS[box - 1] * 86400000).toISOString(), last: new Date(nowMs).toISOString() };
+  }
+
+  function reviewStats(cards, nowIso) {
+    let due = 0, fresh = 0, learning = 0;
+    for (const c of cards) {
+      if (!c.review) fresh++;
+      else if (c.review.due <= nowIso) due++;
+      else learning++;
+    }
+    return { due: due, fresh: fresh, learning: learning };
+  }
+
+  function masteryLevel(c) {
+    if (!c.review) return 0;
+    if (c.review.box >= 5) return 3;
+    if (c.review.box >= 3) return 2;
+    return 1;
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function buildQueue(cards, mode, nowIso) {
+    if (mode === 'random') return shuffle(cards.slice());
+    const due = [], fresh = [];
+    for (const c of cards) {
+      if (!c.review) fresh.push(c);
+      else if (c.review.due <= nowIso) due.push(c);
+    }
+    due.sort((x, y) => String(x.review.due).localeCompare(String(y.review.due)));
+    shuffle(fresh);
+    return due.concat(fresh);
   }
 
   /* ---------- 格式化 ---------- */
@@ -127,6 +194,8 @@
 
   function cardHTML(c) {
     const tags = (c.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
+    const lv = masteryLevel(c);
+    const dot = '<span class="mdot lv' + lv + '" title="' + (lv === 0 ? '新卡' : '复习进度：第 ' + c.review.box + ' 阶') + '"></span>';
     const diff = c.difficulty
       ? '<span class="chip ' + (DIFF_CLASS[c.difficulty] || '') + '">' + esc(c.difficulty) + '</span>'
       : '';
@@ -145,7 +214,7 @@
     return (
       '<article class="card glass" data-id="' + esc(c.id) + '">' +
         '<div class="chead"><h2 class="ctitle">' + esc(c.title) + '</h2>' + diff + '</div>' +
-        '<div class="cmeta">' + tags + '<span class="cdate">' + fmtDate(c.updatedAt) + '</span></div>' +
+        '<div class="cmeta">' + dot + tags + '<span class="cdate">' + fmtDate(c.updatedAt) + '</span></div>' +
         (c.body ? '<p class="cbody">' + esc(c.body) + '</p>' : '') +
         codeBlock +
         '<div class="cfoot">' +
@@ -179,6 +248,7 @@
       grid.innerHTML = list.map(cardHTML).join('');
     }
     updateSyncBadge();
+    updateReviewBadge();
   }
 
   function updateSyncBadge() {
@@ -204,6 +274,44 @@
     if (f) setTimeout(() => f.focus(), 80);
   }
   function closeModals() { $$('.modal').forEach((m) => m.classList.remove('show')); }
+
+  /* ---------- 主题（跟随系统 / 亮 / 暗） ---------- */
+  const THEME_KEY = 'carddeck.theme';
+
+  function themeMode() {
+    try {
+      const m = localStorage.getItem(THEME_KEY);
+      return (m === 'light' || m === 'dark') ? m : 'auto';
+    } catch (e) { return 'auto'; }
+  }
+
+  function applyTheme() {
+    const mode = themeMode();
+    const dark = mode === 'dark' || (mode === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('theme-dark', dark);
+    document.documentElement.style.colorScheme = mode === 'auto' ? '' : mode;
+    const meta = $('#meta-theme');
+    if (meta) meta.setAttribute('content', dark ? '#0d1220' : '#eaf1ff');
+    const btn = $('#btn-theme');
+    if (btn) {
+      btn.textContent = mode === 'auto' ? '◐' : (mode === 'light' ? '☀' : '☾');
+      btn.title = '主题：' + (mode === 'auto' ? '跟随系统' : (mode === 'light' ? '亮色' : '暗色')) + '（点击切换）';
+    }
+  }
+
+  function cycleTheme() {
+    const order = ['auto', 'light', 'dark'];
+    const next = order[(order.indexOf(themeMode()) + 1) % 3];
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* 忽略 */ }
+    applyTheme();
+    toast('主题：' + (next === 'auto' ? '跟随系统' : (next === 'light' ? '亮色' : '暗色')));
+  }
+
+  if (window.matchMedia) {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+    else if (mq.addListener) mq.addListener(applyTheme);
+  }
 
   async function copyText(t) {
     try { await navigator.clipboard.writeText(t); return true; }
@@ -372,6 +480,17 @@
     location.reload();
   }
 
+  function downloadFile(name, text, mime) {
+    const blob = new Blob([text], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+
   function exportData() {
     const text = JSON.stringify({
       version: 1,
@@ -379,16 +498,184 @@
       cards: store.data.cards,
       deleted: store.data.deleted
     }, null, 2) + '\n';
-    const blob = new Blob([text], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'cards.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    downloadFile('cards.json', text, 'application/json');
     toast('已导出 cards.json ✓');
   }
+
+  function exportMarkdown() {
+    const langMap = { cpp: 'cpp', c: 'c', python: 'python', java: 'java', javascript: 'javascript', go: 'go', plain: '' };
+    const lines = ['# 题卡集导出（' + fmtNow() + '）', ''];
+    const list = store.data.cards.slice().sort((x, y) => String(x.title).localeCompare(String(y.title), 'zh'));
+    for (const c of list) {
+      lines.push('## ' + c.title, '');
+      const meta = [];
+      if (c.difficulty) meta.push('难度：' + c.difficulty);
+      if ((c.tags || []).length) meta.push('标签：' + c.tags.join('、'));
+      if (c.review) meta.push('复习：第 ' + c.review.box + ' 阶');
+      if (meta.length) lines.push('> ' + meta.join(' ｜ '), '');
+      if (c.body) lines.push(c.body, '');
+      if (c.code) lines.push('```' + (langMap[c.lang] !== undefined ? langMap[c.lang] : String(c.lang || '')), c.code, '```', '');
+    }
+    downloadFile('cards.md', lines.join('\n') + '\n', 'text/markdown');
+    toast('已导出 cards.md ✓');
+  }
+
+  async function importJSON(file) {
+    try {
+      const text = await file.text();
+      const imported = normalizeDeck(JSON.parse(text));
+      if (!imported.cards.length) { toast('文件中没有有效卡片', true); return; }
+      store.data = mergeData(store.data, imported);
+      store.dirty = true;
+      saveData();
+      render();
+      toast('已导入 ' + imported.cards.length + ' 张卡片（按更新时间合并）✓');
+    } catch (err) {
+      toast('导入失败：' + err.message, true);
+    }
+  }
+
+  /* ---------- 复习模式 ---------- */
+  const review = { active: false, queue: [], idx: 0, revealed: false, stats: { good: 0, ok: 0, bad: 0 }, badIds: [] };
+
+  function updateReviewBadge() {
+    const el = $('#review-count');
+    if (!el) return;
+    const s = reviewStats(store.data.cards, new Date().toISOString());
+    const n = s.due + s.fresh;
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.hidden = n === 0;
+  }
+
+  function openReview() {
+    if (review.active && review.idx < review.queue.length) renderReviewCard();
+    else renderReviewStart();
+    openModal('#modal-review');
+  }
+
+  function renderReviewStart() {
+    review.active = false;
+    const s = reviewStats(store.data.cards, new Date().toISOString());
+    const nothing = (s.due + s.fresh) === 0;
+    $('#review-sheet').innerHTML =
+      '<h3 class="rtitle">复习</h3>' +
+      '<div class="rstats">' +
+        '<div class="rstat"><b>' + s.due + '</b><span>待复习</span></div>' +
+        '<div class="rstat"><b>' + s.fresh + '</b><span>新卡</span></div>' +
+        '<div class="rstat"><b>' + s.learning + '</b><span>学习中</span></div>' +
+      '</div>' +
+      '<button class="btn primary reveal-btn" data-ract="start" type="button"' + (nothing ? ' disabled' : '') + '>开始复习（到期 + 新卡）</button>' +
+      '<button class="btn reveal-btn" data-ract="random" type="button" style="margin-top:10px">随机抽卡（自由复习）</button>' +
+      '<p class="rkbd">间隔复习：认识 → 间隔逐级加长（1/2/4/7/15/30 天）· 模糊 / 不会 → 明天再见</p>';
+  }
+
+  function startReview(mode) {
+    let q;
+    if (mode === 'bad') q = review.badIds.map((id) => store.data.cards.find((c) => c.id === id)).filter(Boolean);
+    else q = buildQueue(store.data.cards, mode, new Date().toISOString());
+    if (!q.length) { toast('没有可复习的卡片 🎉'); return; }
+    review.queue = q;
+    review.idx = 0;
+    review.revealed = false;
+    review.stats = { good: 0, ok: 0, bad: 0 };
+    review.badIds = [];
+    review.active = true;
+    renderReviewCard();
+  }
+
+  function renderReviewCard() {
+    const c = review.queue[review.idx];
+    const tags = (c.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
+    const diff = c.difficulty ? '<span class="chip ' + (DIFF_CLASS[c.difficulty] || '') + '">' + esc(c.difficulty) + '</span>' : '';
+    const pct = Math.round((review.idx / review.queue.length) * 100);
+    const head =
+      '<div class="rcount"><span>第 ' + (review.idx + 1) + ' / ' + review.queue.length + ' 张</span><span>不会的卡评分后明天再见</span></div>' +
+      '<div class="rprog"><div class="rprog-in" style="width:' + pct + '%"></div></div>' +
+      '<div class="chead"><h3 class="rtitle">' + esc(c.title) + '</h3>' + diff + '</div>' +
+      '<div class="cmeta"><span class="mdot lv' + masteryLevel(c) + '"></span>' + tags + '</div>';
+    let body;
+    if (!review.revealed) {
+      body = '<div class="rhint">先自己在心里过一遍思路 ✍️</div>' +
+        '<button class="btn primary reveal-btn" data-ract="reveal" type="button">显示答案（空格）</button>' +
+        '<button class="btn reveal-btn" data-ract="skip" type="button" style="margin-top:10px">跳过这张（→）</button>';
+    } else {
+      const nb = Math.min(6, ((c.review && c.review.box) || 0) + 1);
+      body = (c.body ? '<p class="cbody open">' + esc(c.body) + '</p>' : '') +
+        (c.code ? '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>' : '') +
+        '<div class="rate-row">' +
+          '<button class="rate bad" data-rate="bad" type="button">不会<small>明天</small></button>' +
+          '<button class="rate ok" data-rate="ok" type="button">模糊<small>明天</small></button>' +
+          '<button class="rate good" data-rate="good" type="button">认识<small>' + RV_DAYS[nb - 1] + '天后</small></button>' +
+        '</div>';
+    }
+    body += '<p class="rkbd">快捷键：空格 显示答案 · 1 / 2 / 3 评分 · → 跳过 · Esc 退出</p>';
+    $('#review-sheet').innerHTML = head + body;
+  }
+
+  function revealAnswer() {
+    if (!review.active || review.idx >= review.queue.length || review.revealed) return;
+    review.revealed = true;
+    renderReviewCard();
+  }
+
+  function rateReview(rate) {
+    if (!review.active || !review.revealed || review.idx >= review.queue.length) return;
+    const c = review.queue[review.idx];
+    c.review = nextReview(c.review, rate, Date.now());
+    review.stats[rate]++;
+    if (rate === 'bad') review.badIds.push(c.id);
+    store.dirty = true;
+    saveData();
+    review.idx++;
+    review.revealed = false;
+    updateReviewBadge();
+    if (review.idx >= review.queue.length) renderReviewDone();
+    else renderReviewCard();
+  }
+
+  function skipReview() {
+    if (review.idx >= review.queue.length) return;
+    review.idx++;
+    review.revealed = false;
+    if (review.idx >= review.queue.length) renderReviewDone();
+    else renderReviewCard();
+  }
+
+  function renderReviewDone() {
+    const s = review.stats;
+    $('#review-sheet').innerHTML =
+      '<h3 class="rtitle" style="text-align:center">本轮完成 🎉</h3>' +
+      '<div class="rstats">' +
+        '<div class="rstat"><b>' + s.good + '</b><span>认识</span></div>' +
+        '<div class="rstat"><b>' + s.ok + '</b><span>模糊</span></div>' +
+        '<div class="rstat"><b>' + s.bad + '</b><span>不会</span></div>' +
+      '</div>' +
+      (review.badIds.length ? '<button class="btn primary reveal-btn" data-ract="redo" type="button">重刷不会的（' + review.badIds.length + ' 张）</button>' : '') +
+      '<button class="btn reveal-btn" data-ract="done" type="button" style="margin-top:10px">完成</button>';
+    render();
+  }
+
+  /* 会话结束时统一推送一次：避免复习中每评一张就产生一个提交 */
+  function endReviewSession() {
+    if (!review.active) return;
+    review.active = false;
+    const cfg = GH.cfg();
+    if (store.dirty && cfg && cfg.token && cfg.owner && cfg.repo) syncAll(false);
+  }
+
+  function onReviewClick(e) {
+    const el = e.target.closest('[data-rate],[data-ract]');
+    if (!el) return;
+    if (el.dataset.rate) { rateReview(el.dataset.rate); return; }
+    const act = el.dataset.ract;
+    if (act === 'start') startReview('due');
+    else if (act === 'random') startReview('random');
+    else if (act === 'reveal') revealAnswer();
+    else if (act === 'skip') skipReview();
+    else if (act === 'redo') startReview('bad');
+    else if (act === 'done') { endReviewSession(); closeModals(); }
+  }
+
 
   /* ---------- 同步 ---------- */
   let syncing = false;
@@ -466,7 +753,9 @@
   /* ---------- 事件绑定 ---------- */
   function bindEvents() {
     $('#btn-add').addEventListener('click', () => openAddModal(null));
+    $('#btn-review').addEventListener('click', openReview);
     $('#btn-sync').addEventListener('click', () => syncAll(false));
+    $('#btn-theme').addEventListener('click', cycleTheme);
     $('#btn-settings').addEventListener('click', openSettings);
     let searchTimer = null;
     $('#search').addEventListener('input', (e) => {
@@ -488,11 +777,33 @@
     $('#form-settings').addEventListener('submit', (e) => { e.preventDefault(); saveSettings(); });
     $('#btn-test').addEventListener('click', testConn);
     $('#btn-export').addEventListener('click', exportData);
+    $('#btn-export-md').addEventListener('click', exportMarkdown);
+    $('#btn-import').addEventListener('click', () => $('#file-import').click());
+    $('#file-import').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (f) importJSON(f);
+    });
     $('#btn-clear').addEventListener('click', clearLocal);
+    $('#review-sheet').addEventListener('click', onReviewClick);
 
     $$('[data-close]').forEach((b) => b.addEventListener('click', closeModals));
     $$('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) closeModals(); }));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModals(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { endReviewSession(); closeModals(); return; }
+      if (!$('#modal-review').classList.contains('show')) return;
+      if (!review.active) {                                   // 起始页：回车直接开始
+        if (e.key === 'Enter') { e.preventDefault(); startReview('due'); }
+        return;
+      }
+      if (!review.revealed && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); revealAnswer(); return; }
+      if (review.revealed && (e.key === '1' || e.key === '2' || e.key === '3')) {
+        e.preventDefault();
+        rateReview(['good', 'ok', 'bad'][Number(e.key) - 1]);
+        return;
+      }
+      if (e.key === 'ArrowRight') { e.preventDefault(); skipReview(); }   // 跳过不限是否已显示答案
+    });
   }
 
   /* ---------- 启动 ---------- */
@@ -523,6 +834,7 @@
       saveData();
     }
 
+    applyTheme();
     bindEvents();
     render();
 

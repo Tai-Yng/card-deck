@@ -13,8 +13,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="题卡集">
-  <meta name="theme-color" content="#eaf1ff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0d1220" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" id="meta-theme" content="#eaf1ff">
+  <script>
+    /* 首屏主题预处理：暗色用户不再闪白 */
+    try {
+      var __t = localStorage.getItem('carddeck.theme');
+      if (__t === 'dark' || (__t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('theme-dark');
+      }
+    } catch (e) { /* 忽略 */ }
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -28,7 +36,9 @@
       <div class="search"><input id="search" type="text" placeholder="搜索题目 / 正文 / 代码 / 标签…" aria-label="搜索卡片"></div>
       <div class="actions">
         <button id="btn-add" class="btn primary" type="button">＋ 添加卡片</button>
+        <button id="btn-review" class="btn" type="button" title="间隔复习">🎓 复习 <span class="rv-badge" id="review-count" hidden></span></button>
         <button id="btn-sync" class="btn" type="button" title="拉取并推送（按更新时间自动合并）"><span class="sicon">⟳</span> 同步 <i id="sync-dot" title="有未上传的修改"></i></button>
+        <button id="btn-theme" class="btn" type="button" title="主题">◐</button>
         <button id="btn-settings" class="btn" type="button" title="GitHub 同步设置" aria-label="设置">⚙</button>
       </div>
     </header>
@@ -120,11 +130,19 @@
         <div class="sheet-actions">
           <button class="btn" type="button" id="btn-clear">清除本机缓存</button>
           <button class="btn" type="button" id="btn-export">导出 JSON</button>
+          <button class="btn" type="button" id="btn-export-md">导出 Markdown</button>
+          <button class="btn" type="button" id="btn-import">导入 JSON</button>
           <button class="btn" type="button" id="btn-test">测试连接</button>
           <button class="btn primary" type="submit">保存</button>
         </div>
+        <input type="file" id="file-import" accept=".json,application/json" hidden>
       </form>
     </div>
+  </div>
+
+  <!-- 复习模式 -->
+  <div class="modal" id="modal-review" role="dialog" aria-modal="true" aria-label="复习模式">
+    <div class="sheet glass review-sheet" id="review-sheet"></div>
   </div>
 
   <div id="toast" role="status"></div>
