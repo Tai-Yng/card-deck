@@ -604,7 +604,8 @@
   }
 
   /* ---------- 复习模式 ---------- */
-  const review = { active: false, queue: [], idx: 0, revealed: false, stats: { good: 0, ok: 0, bad: 0 }, badIds: [], undoStack: [] };
+  const review = { active: false, queue: [], idx: 0, stage: 0, stats: { good: 0, ok: 0, bad: 0 }, badIds: [], undoStack: [] };
+  /* stage 揭示阶段：0=仅题目(想思路) 1=思路已显示(想代码) 2=答案已显示(可评分) */
 
   function updateReviewBadge() {
     const el = $('#review-count');
@@ -646,7 +647,7 @@
     if (!q.length) { toast('没有可复习的卡片 🎉'); return; }
     review.queue = q;
     review.idx = 0;
-    review.revealed = false;
+    review.stage = 0;
     review.stats = { good: 0, ok: 0, bad: 0 };
     review.badIds = [];
     review.undoStack = [];
@@ -664,39 +665,41 @@
       '<div class="rprog"><div class="rprog-in" style="width:' + pct + '%"></div></div>' +
       '<div class="chead"><h3 class="rtitle">' + esc(c.title) + '</h3>' + diff + '</div>' +
       '<div class="cmeta"><span class="mdot lv' + masteryLevel(c) + '"></span>' + tags + '</div>';
-    let content;
-    if (!review.revealed) {
+    let content = '';
+    if (review.stage === 0) {
       content = '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
     } else {
-      const nb = Math.min(6, ((c.review && c.review.box) || 0) + 1);
-      content = (c.body ? '<p class="cbody open">' + esc(c.body) + '</p>' : '') +
-        (c.code ? '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>' : '');
+      if (c.body) content += '<p class="cbody open">' + esc(c.body) + '</p>';
+      if (review.stage === 1) content += '<div class="rhint">对照思路，现在在心里写出代码 ✍️</div>';
+      if (review.stage >= 2 && c.code) content += '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>';
     }
     const undoBtn = review.undoStack.length
       ? '<button class="undo-btn" data-ract="undo" type="button">↩ 撤销上一次评分</button>'
       : '';
-    const actions = review.revealed
+    const actions = review.stage === 2
       ? '<div class="rate-row">' +
           '<button class="rate bad" data-rate="bad" type="button">不会<small>明天</small></button>' +
           '<button class="rate ok" data-rate="ok" type="button">模糊<small>明天</small></button>' +
           '<button class="rate good" data-rate="good" type="button">认识<small>' + RV_DAYS[Math.min(6, ((c.review && c.review.box) || 0) + 1) - 1] + '天后</small></button>' +
         '</div>'
-      : '<button class="btn primary reveal-btn" data-ract="reveal" type="button">显示答案（空格）</button>' +
+      : '<button class="btn primary reveal-btn" data-ract="reveal" type="button">' + (review.stage === 0 && c.body ? '显示思路（空格）' : '显示答案（空格）') + '</button>' +
         '<button class="btn reveal-btn" data-ract="skip" type="button" style="margin-top:10px">跳过这张（→）</button>';
-    const kbd = '<p class="rkbd">快捷键：空格 显示答案 · 1 / 2 / 3 评分 · → 跳过 · Backspace 撤销 · Esc 退出</p>';
+    const kbd = '<p class="rkbd">快捷键：空格 思路→答案 · 1 / 2 / 3 评分 · → 跳过 · Backspace 撤销 · Esc 退出</p>';
     $('#review-sheet').innerHTML =
       '<div class="review-scroll">' + head + content + '</div>' +
       '<div class="review-actions">' + undoBtn + actions + kbd + '</div>';
   }
 
-  function revealAnswer() {
-    if (!review.active || review.idx >= review.queue.length || review.revealed) return;
-    review.revealed = true;
+  function advanceReveal() {
+    if (!review.active || review.idx >= review.queue.length || review.stage >= 2) return;
+    review.stage++;
+    const c = review.queue[review.idx];
+    if (review.stage === 1 && !c.body) review.stage = 2;   // 无正文的卡跳过空思路阶段
     renderReviewCard();
   }
 
   function rateReview(rate) {
-    if (!review.active || !review.revealed || review.idx >= review.queue.length) return;
+    if (!review.active || review.stage !== 2 || review.idx >= review.queue.length) return;
     const c = review.queue[review.idx];
     review.undoStack.push({ id: c.id, idx: review.idx, prevReview: c.review ? { box: c.review.box, due: c.review.due, last: c.review.last } : null, rate: rate });
     c.review = nextReview(c.review, rate, Date.now());
@@ -705,7 +708,7 @@
     store.dirty = true;
     saveData();
     review.idx++;
-    review.revealed = false;
+    review.stage = 0;
     updateReviewBadge();
     if (review.idx >= review.queue.length) renderReviewDone();
     else renderReviewCard();
@@ -725,7 +728,7 @@
       if (bi !== -1) review.badIds.splice(bi, 1);
     }
     review.idx = e.idx;          // 用入栈时下标定位（跳过卡不进栈，栈长≠idx）
-    review.revealed = true;
+    review.stage = 2;            // 回到评分时所见状态（思路+代码已显示）
     saveData();
     updateReviewBadge();
     renderReviewCard();
@@ -734,7 +737,7 @@
   function skipReview() {
     if (review.idx >= review.queue.length) return;
     review.idx++;
-    review.revealed = false;
+    review.stage = 0;
     if (review.idx >= review.queue.length) renderReviewDone();
     else renderReviewCard();
   }
@@ -772,7 +775,7 @@
     const act = el.dataset.ract;
     if (act === 'start') startReview('due');
     else if (act === 'random') startReview('random');
-    else if (act === 'reveal') revealAnswer();
+    else if (act === 'reveal') advanceReveal();
     else if (act === 'skip') skipReview();
     else if (act === 'undo') undoReview();
     else if (act === 'redo') startReview('bad');
@@ -901,8 +904,8 @@
         return;
       }
       if (review.active && e.key === 'Backspace') { e.preventDefault(); undoReview(); return; }
-      if (!review.revealed && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); revealAnswer(); return; }
-      if (review.revealed && (e.key === '1' || e.key === '2' || e.key === '3')) {
+      if (review.stage < 2 && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); advanceReveal(); return; }
+      if (review.stage === 2 && (e.key === '1' || e.key === '2' || e.key === '3')) {
         e.preventDefault();
         rateReview(['good', 'ok', 'bad'][Number(e.key) - 1]);
         return;
