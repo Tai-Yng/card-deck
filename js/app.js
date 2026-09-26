@@ -604,8 +604,11 @@
   }
 
   /* ---------- 复习模式 ---------- */
-  const review = { active: false, queue: [], idx: 0, stage: 0, stats: { good: 0, ok: 0, bad: 0 }, badIds: [], undoStack: [] };
-  /* stage 揭示阶段：0=仅题目(想思路) 1=思路已显示(想代码) 2=答案已显示(可评分) */
+  const review = { active: false, queue: [], idx: 0, reveal: { body: false, code: false }, stats: { good: 0, ok: 0, bad: 0 }, badIds: [], undoStack: [] };
+  /* reveal 揭示状态（用户自选顺序）：body/code 各自的方框是否已揭开；评分在全部可揭示内容揭开后可用 */
+  function allRevealed(c) {
+    return (!c.body || review.reveal.body) && (!c.code || review.reveal.code);
+  }
 
   function updateReviewBadge() {
     const el = $('#review-count');
@@ -647,7 +650,7 @@
     if (!q.length) { toast('没有可复习的卡片 🎉'); return; }
     review.queue = q;
     review.idx = 0;
-    review.stage = 0;
+    review.reveal = { body: false, code: false };
     review.stats = { good: 0, ok: 0, bad: 0 };
     review.badIds = [];
     review.undoStack = [];
@@ -666,29 +669,28 @@
       '<div class="chead"><h3 class="rtitle">' + esc(c.title) + '</h3>' + diff + '</div>' +
       '<div class="cmeta"><span class="mdot lv' + masteryLevel(c) + '"></span>' + tags + '</div>';
     let content = '';
-    if (review.stage === 0) {
-      content = c.body
-        ? '<div class="reveal-box" data-ract="reveal">' +
+    if (c.body) {
+      content += review.reveal.body
+        ? '<p class="cbody open">' + esc(c.body) + '</p>'
+        : '<div class="reveal-box" data-ract="reveal-body">' +
             '<div class="rv-skel"><i></i><i></i><i></i><i></i><i></i></div>' +
             '<span class="rv-label">👁 点击显示思路</span>' +
-          '</div>'
-        : '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
-    } else {
-      if (c.body) content += '<p class="cbody open">' + esc(c.body) + '</p>';
-      if (review.stage === 1) {
-        content += c.code
-          ? '<div class="reveal-box rv-code" data-ract="reveal">' +
-              '<div class="rv-skel"><i></i><i></i><i></i><i></i><i></i></div>' +
-              '<span class="rv-label">👁 点击显示答案</span>' +
-            '</div>'
-          : '<div class="rhint">对照思路，现在在心里写出代码 ✍️</div>';
-      }
-      if (review.stage >= 2 && c.code) content += '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>';
+          '</div>';
+    } else if (!review.reveal.body && !review.reveal.code) {
+      content += '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
+    }
+    if (c.code) {
+      content += review.reveal.code
+        ? '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>'
+        : '<div class="reveal-box rv-code" data-ract="reveal-code">' +
+            '<div class="rv-skel"><i></i><i></i><i></i><i></i><i></i></div>' +
+            '<span class="rv-label">👁 点击显示答案</span>' +
+          '</div>';
     }
     const undoBtn = review.undoStack.length
       ? '<button class="undo-btn" data-ract="undo" type="button">↩ 撤销上一次评分</button>'
       : '';
-    const actions = review.stage === 2
+    const actions = allRevealed(c)
       ? '<div class="rate-row">' +
           '<button class="rate bad" data-rate="bad" type="button">不会<small>明天</small></button>' +
           '<button class="rate ok" data-rate="ok" type="button">模糊<small>明天</small></button>' +
@@ -702,15 +704,15 @@
   }
 
   function advanceReveal() {
-    if (!review.active || review.idx >= review.queue.length || review.stage >= 2) return;
-    review.stage++;
+    if (!review.active || review.idx >= review.queue.length) return;
     const c = review.queue[review.idx];
-    if (review.stage === 1 && !c.body) review.stage = 2;   // 无正文的卡跳过空思路阶段
-    renderReviewCard();
+    if (c.body && !review.reveal.body) { review.reveal.body = true; renderReviewCard(); return; }   // 空格默认顺序:先思路
+    if (c.code && !review.reveal.code) { review.reveal.code = true; renderReviewCard(); return; }
   }
 
   function rateReview(rate) {
-    if (!review.active || review.stage !== 2 || review.idx >= review.queue.length) return;
+    if (!review.active || review.idx >= review.queue.length) return;
+    if (!allRevealed(review.queue[review.idx])) return;   // 未全部揭示不可评分
     const c = review.queue[review.idx];
     review.undoStack.push({ id: c.id, idx: review.idx, prevReview: c.review ? { box: c.review.box, due: c.review.due, last: c.review.last } : null, rate: rate });
     c.review = nextReview(c.review, rate, Date.now());
@@ -719,7 +721,7 @@
     store.dirty = true;
     saveData();
     review.idx++;
-    review.stage = 0;
+    review.reveal = { body: false, code: false };
     updateReviewBadge();
     if (review.idx >= review.queue.length) renderReviewDone();
     else renderReviewCard();
@@ -739,7 +741,7 @@
       if (bi !== -1) review.badIds.splice(bi, 1);
     }
     review.idx = e.idx;          // 用入栈时下标定位（跳过卡不进栈，栈长≠idx）
-    review.stage = 2;            // 回到评分时所见状态（思路+代码已显示）
+    review.reveal = { body: true, code: true };   // 评分时必然全揭示 → 恢复到该状态
     saveData();
     updateReviewBadge();
     renderReviewCard();
@@ -748,7 +750,7 @@
   function skipReview() {
     if (review.idx >= review.queue.length) return;
     review.idx++;
-    review.stage = 0;
+    review.reveal = { body: false, code: false };
     if (review.idx >= review.queue.length) renderReviewDone();
     else renderReviewCard();
   }
@@ -786,7 +788,8 @@
     const act = el.dataset.ract;
     if (act === 'start') startReview('due');
     else if (act === 'random') startReview('random');
-    else if (act === 'reveal') advanceReveal();
+    else if (act === 'reveal-body') { review.reveal.body = true; renderReviewCard(); }
+    else if (act === 'reveal-code') { review.reveal.code = true; renderReviewCard(); }
     else if (act === 'skip') skipReview();
     else if (act === 'undo') undoReview();
     else if (act === 'redo') startReview('bad');
@@ -915,8 +918,10 @@
         return;
       }
       if (review.active && e.key === 'Backspace') { e.preventDefault(); undoReview(); return; }
-      if (review.stage < 2 && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); advanceReveal(); return; }
-      if (review.stage === 2 && (e.key === '1' || e.key === '2' || e.key === '3')) {
+      if (review.active && (e.key === ' ' || e.key === 'Enter') && !allRevealed(review.queue[review.idx])) { e.preventDefault(); advanceReveal(); return; }
+      if (review.active && (e.key === '1' || e.key === '2' || e.key === '3')) {
+        const c = review.queue[review.idx];
+        if (!allRevealed(c)) return;                        // 未全揭示数字键无效
         e.preventDefault();
         rateReview(['good', 'ok', 'bad'][Number(e.key) - 1]);
         return;
