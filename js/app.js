@@ -331,33 +331,101 @@
   }
 
   /* ---------- 卡片操作 ---------- */
+  let detailId = null;   // 详情浮层当前展示的卡片
+
   function bindGrid() {
     $('#grid').addEventListener('click', async (e) => {
-      const bodyEl = e.target.closest('.cbody');
-      if (bodyEl && !e.target.closest('button')) {
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel || sel.isCollapsed) bodyEl.classList.toggle('open');   // 正在选中文字时不切换展开
+      const btn = e.target.closest('[data-act]');
+      if (btn) {
+        const cardEl = btn.closest('.card');
+        const id = cardEl ? cardEl.getAttribute('data-id') : '';
+        const act = btn.getAttribute('data-act');
+
+        if (act === 'copy') {
+          const c = store.data.cards.find((x) => x.id === id);
+          const ok = c ? await copyText(c.code || '') : false;
+          btn.textContent = ok ? '已复制 ✓' : '复制失败';
+          setTimeout(() => { btn.textContent = '复制'; }, 1300);
+        } else if (act === 'toggle') {
+          const pre = $('.code', cardEl);
+          pre.classList.toggle('collapsed');
+          btn.textContent = pre.classList.contains('collapsed') ? '展开' : '收起';
+        } else if (act === 'edit') {
+          openAddModal(store.data.cards.find((x) => x.id === id) || null);
+        } else if (act === 'del') {
+          delCard(id);
+        }
         return;
       }
+      /* 点卡任意非按钮区域 → 单卡聚焦详情 */
+      const cardEl = e.target.closest('.card');
+      if (cardEl && cardEl.getAttribute('data-id')) openCardDetail(cardEl.getAttribute('data-id'));
+    });
+  }
+
+  function openCardDetail(id) {
+    const c = store.data.cards.find((x) => x.id === id);
+    if (!c) return;
+    detailId = id;
+    $('#card-sheet').innerHTML = cardDetailHTML(c);
+    openModal('#modal-card');
+  }
+
+  function cardDetailHTML(c) {
+    const tags = (c.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
+    const lv = masteryLevel(c);
+    const dot = '<span class="mdot lv' + lv + '" title="' + (lv === 0 ? '新卡' : '复习进度：第 ' + c.review.box + ' 阶') + '"></span>';
+    const diff = c.difficulty
+      ? '<span class="chip ' + (DIFF_CLASS[c.difficulty] || '') + '">' + esc(c.difficulty) + '</span>'
+      : '';
+    const codeBlock = c.code ? (
+      '<div class="codewrap">' +
+        '<div class="codebar">' +
+          '<span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span>' +
+          '<span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span>' +
+          '<span class="spacer"></span>' +
+          '<button class="mini" data-act="toggle" type="button">收起</button>' +
+          '<button class="mini" data-act="copy" type="button">复制</button>' +
+        '</div>' +
+        '<pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre>' +
+      '</div>'
+    ) : '';
+    return (
+      '<article class="detail-card" data-id="' + esc(c.id) + '">' +
+        '<div class="chead"><h2 class="ctitle">' + esc(c.title) + '</h2>' + diff + '</div>' +
+        '<div class="cmeta">' + dot + tags + '<span class="cdate">' + fmtDate(c.updatedAt) + '</span></div>' +
+        (c.body ? '<p class="cbody open">' + esc(c.body) + '</p>' : '') +
+        codeBlock +
+        '<div class="cfoot detail-foot">' +
+          '<button class="mini" data-act="edit" type="button">编辑</button>' +
+          '<button class="mini danger" data-act="del" type="button">删除</button>' +
+          '<button class="mini" data-close type="button">关闭</button>' +
+        '</div>' +
+      '</article>'
+    );
+  }
+
+  function bindCardSheet() {
+    $('#card-sheet').addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
-      const cardEl = btn.closest('.card');
-      const id = cardEl ? cardEl.getAttribute('data-id') : '';
+      const c = store.data.cards.find((x) => x.id === detailId);
+      if (!c) return;
       const act = btn.getAttribute('data-act');
-
       if (act === 'copy') {
-        const c = store.data.cards.find((x) => x.id === id);
-        const ok = c ? await copyText(c.code || '') : false;
+        const ok = await copyText(c.code || '');
         btn.textContent = ok ? '已复制 ✓' : '复制失败';
         setTimeout(() => { btn.textContent = '复制'; }, 1300);
       } else if (act === 'toggle') {
-        const pre = $('.code', cardEl);
+        const pre = $('.code', $('#card-sheet'));
         pre.classList.toggle('collapsed');
         btn.textContent = pre.classList.contains('collapsed') ? '展开' : '收起';
       } else if (act === 'edit') {
-        openAddModal(store.data.cards.find((x) => x.id === id) || null);
+        closeModals();                       // 先收详情再进编辑
+        openAddModal(c);
       } else if (act === 'del') {
-        delCard(id);
+        closeModals();
+        delCard(c.id);
       }
     });
   }
@@ -807,6 +875,7 @@
     });
 
     bindGrid();
+    bindCardSheet();
 
     $('#form-add').addEventListener('submit', (e) => { e.preventDefault(); saveCard(); });
     $('#form-settings').addEventListener('submit', (e) => { e.preventDefault(); saveSettings(); });
