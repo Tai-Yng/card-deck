@@ -1,7 +1,7 @@
 // 自动生成的离线兜底数据（与 data/cards.json 保持一致，勿手改；改请改 data/cards.json 后重新生成）
 window.SEED = {
   "version": 1,
-  "updatedAt": "2026-09-20T12:00:00.000Z",
+  "updatedAt": "2026-09-26T11:34:27.742Z",
   "cards": [
     {
       "id": "demo-0001",
@@ -41,6 +41,1306 @@ window.SEED = {
       "body": "【题目】给定升序数组 nums 和目标值 target，找到则返回下标，否则返回 -1。\n\n【思路】闭区间 [lo, hi] 二分：mid 用 lo + (hi - lo) / 2 防溢出；nums[mid] < target 时 lo = mid + 1，否则 hi = mid - 1。循环条件 lo <= hi。时间 O(log n)。",
       "code": "class Solution {\npublic:\n    int search(vector<int>& nums, int target) {\n        int lo = 0, hi = (int)nums.size() - 1;\n        while (lo <= hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (nums[mid] == target) return mid;\n            if (nums[mid] < target) lo = mid + 1;\n            else hi = mid - 1;\n        }\n        return -1;\n    }\n};",
       "updatedAt": "2026-09-20T12:02:00.000Z"
+    },
+    {
+      "id": "hot100-1",
+      "title": "1. 两数之和",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "哈希"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希表一次遍历\n\n【思路】暴力枚举所有数对是 O(n²)，瓶颈在于\"找 target − x 是否存在\"每次都要重扫数组。观察到对每个数 x，我们要找的目标是固定的 complement = target − x，于是用哈希表存\"数值 → 下标\"，边遍历边查询：先查 complement 是否已在表中，查到即返回答案，再把当前数连同下标存入。这样数组只需扫一遍。\n\n【复杂度】时间 O(n)，每个元素入表与查询各一次；空间 O(n)，哈希表最多存 n 个\"数值 → 下标\"。\n\n【要点】\n- \"先查再存\"天然保证不会把同一个元素用两次，也正确处理重复值。\n- 命中时 complement 的下标一定小于 i，直接返回 {它的下标, i} 即可。",
+      "code": "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        unordered_map<int, int> seen; // 数值 -> 下标\n        for (int i = 0; i < (int)nums.size(); ++i) {\n            auto it = seen.find(target - nums[i]);\n            if (it != seen.end()) return {it->second, i}; // 先查再存\n            seen[nums[i]] = i;\n        }\n        return {};\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-49",
+      "title": "49. 字母异位词分组",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "哈希"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希分组、计数键/排序键\n\n【思路】互为异位词的字符串共享一个不变量——字母组成完全相同，因此排序后结果一模一样，排序串就是天然的分组键。用 unordered_map<string, vector<string>> 建桶：每个字符串排序得到 key，塞进对应桶，最后把所有桶收集成答案。若想省掉排序的 log 因子，可把 26 个字母的出现次数拼成字符串当键（计数键），本质相同。\n\n【复杂度】时间 O(n·k log k)，n 为字符串个数、k 为最大长度（每串排序主导）；空间 O(n·k)，哈希桶里存了全部字符串。\n\n【要点】\n- 本题难点不在流程而在\"设计键\"：排序键稳健易写，计数键（26 计数拼串）更快但代码稍长。\n- push_back(move(s)) 把字符串移入桶中，避免一次昂贵的深拷贝。",
+      "code": "class Solution {\npublic:\n    vector<vector<string>> groupAnagrams(vector<string>& strs) {\n        // 排序后的字符串作为同组异位词的公共键\n        unordered_map<string, vector<string>> groups;\n        for (auto& s : strs) {\n            string key = s;\n            sort(key.begin(), key.end());\n            groups[key].push_back(move(s));\n        }\n        vector<vector<string>> ans;\n        for (auto& [_, group] : groups) ans.push_back(move(group));\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-128",
+      "title": "128. 最长连续序列",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "哈希"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希集合、只从序列起点开始数\n\n【思路】排序可解但是 O(n log n)，题目要求 O(n)，考虑哈希。把所有数放进 unordered_set，关键观察是：一段连续序列有唯一的\"起点\" x——x − 1 不在集合里。遍历时若 x 不是起点就直接跳过，是起点则沿着 x+1、x+2……向后数出整段长度。由于每个数只会在所属序列的起点处被数一遍，总工作量是线性的。\n\n【复杂度】时间 O(n)，每个数至多在起点扩展中被访问一次；空间 O(n)，哈希集合存下所有数。\n\n【要点】\n- if (st.count(x - 1)) continue; 是把 O(n²) 压到 O(n) 的关键一行，绝不能省。\n- 遍历集合而不是原数组，重复元素自动去重，不会重复统计。",
+      "code": "class Solution {\npublic:\n    int longestConsecutive(vector<int>& nums) {\n        unordered_set<int> st(nums.begin(), nums.end());\n        int ans = 0;\n        for (int x : st) {\n            if (st.count(x - 1)) continue; // x 不是序列起点，跳过\n            int len = 1;                   // 从起点向后数完整段\n            while (st.count(x + len)) ++len;\n            ans = max(ans, len);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-283",
+      "title": "283. 移动零",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "双指针"
+      ],
+      "lang": "cpp",
+      "body": "考点：快慢指针原地交换\n\n【思路】要求原地完成且保持非零元素的相对顺序，自然的想法是快慢指针：slow 标记\"下一个非零数应该落位的位置\"，fast 负责扫描。fast 遇到非零数就与 slow 处交换并 slow++，从而维护不变量——[0, slow) 全是非零且保持原序，[slow, fast) 全是零。扫完数组，零全部沉到尾部。\n\n【复杂度】时间 O(n)，fast 只扫一遍数组；空间 O(1)，只用了两个下标。\n\n【要点】\n- 牢记循环不变量 [0, slow) 非零有序、[slow, fast) 全零，写错时回到它检查。\n- 交换版比\"先把非零数依次前移再补零\"的写法更简洁，且天然保持顺序。",
+      "code": "class Solution {\npublic:\n    void moveZeroes(vector<int>& nums) {\n        int slow = 0; // 不变量：[0, slow) 均为按原序排列的非零数\n        for (int fast = 0; fast < (int)nums.size(); ++fast) {\n            if (nums[fast] != 0) {\n                swap(nums[slow++], nums[fast]);\n            }\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-11",
+      "title": "11. 盛最多水的容器",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "双指针"
+      ],
+      "lang": "cpp",
+      "body": "考点：对撞指针、移动短板\n\n【思路】面积 = min(左板, 右板) × 宽度。从最宽的两端开始，宽度只会不断变小，所以每次必须指望\"板更高\"才可能更优：较矮的那块板再留着，配任何更近的板都只会更差，可以安全丢弃。于是每次移动较矮一侧的指针，过程中用全局变量记录最大面积。\"每一步丢弃都不会漏掉最优解\"的论证是对撞指针正确性的关键。\n\n【复杂度】时间 O(n)，两指针合计移动 n−1 次；空间 O(1)，只记录答案与两个指针。\n\n【要点】\n- 移动哪侧看\"板高\"而非面积：height[l] < height[r] 移左，否则移右；相等时移哪侧都正确。\n- 面积公式先取 min 再乘宽度，别写成两板相乘。",
+      "code": "class Solution {\npublic:\n    int maxArea(vector<int>& height) {\n        int ans = 0, l = 0, r = (int)height.size() - 1;\n        while (l < r) {\n            ans = max(ans, min(height[l], height[r]) * (r - l));\n            // 宽度在变小，只有丢掉较矮的板、换成更高的板才可能更优\n            if (height[l] < height[r]) ++l;\n            else --r;\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-15",
+      "title": "15. 三数之和",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "双指针"
+      ],
+      "lang": "cpp",
+      "body": "考点：排序+固定一个数+对撞指针、去重\n\n【思路】排序是破局第一步：固定 i 后，问题退化为\"在有序区间的两端找两数之和等于 −nums[i]\"，这正是对撞指针的标准场景。和小于 0 则 l++ 增大和，大于 0 则 r-- 减小和，等于 0 记录答案。真正的坑在去重：固定数 i 要跳过相邻重复值；一旦找到一组解，l 与 r 也要各自跳过重复值后再收缩，才能保证结果不重不漏。\n\n【复杂度】时间 O(n²)，排序 O(n log n) 加外层 n 轮各 O(n) 的扫描；空间 O(log n)，排序递归栈（不计返回的答案）。\n\n【要点】\n- 两处去重缺一不可：i 层跳过相邻重复值；找到解后 l、r 跳重复再 ++l/--r。\n- nums[i] > 0 时直接 break，是利用有序性的一次小剪枝。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> threeSum(vector<int>& nums) {\n        sort(nums.begin(), nums.end());\n        int n = nums.size();\n        vector<vector<int>> ans;\n        for (int i = 0; i < n - 2; ++i) {\n            if (nums[i] > 0) break;                        // 最小的数已为正，无解\n            if (i > 0 && nums[i] == nums[i - 1]) continue; // 固定数去重\n            int l = i + 1, r = n - 1;\n            while (l < r) {\n                int sum = nums[i] + nums[l] + nums[r];\n                if (sum < 0) ++l;\n                else if (sum > 0) --r;\n                else {\n                    ans.push_back({nums[i], nums[l], nums[r]});\n                    while (l < r && nums[l] == nums[l + 1]) ++l; // 解内去重\n                    while (l < r && nums[r] == nums[r - 1]) --r;\n                    ++l; --r;\n                }\n            }\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-42",
+      "title": "42. 接雨水",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "双指针"
+      ],
+      "lang": "cpp",
+      "body": "考点：前后缀最大值 / 双指针\n\n【思路】一切的起点是局部公式：位置 i 的积水 = min(左侧最大高度, 右侧最大高度) − height[i]。按此预处理前后缀最大值数组即可 O(n) 解决，但要开 O(n) 空间。双指针解法的观察是：维护已扫部分的 preMax 与 sufMax，若 preMax < sufMax，则左端点的水位必然由 preMax 决定（右侧一定存在更高的板挡着），可放心结算左端点并右移；否则对称地结算右端点。一次相向扫描完成，不需要任何数组。\n\n【复杂度】时间 O(n)，l、r 相向合计扫过整个数组；空间 O(1)，只维护两个最大值变量。\n\n【要点】\n- 比较对象是 preMax 与 sufMax（不是 height[l] 与 height[r]），这是最容易写错的地方。\n- 循环用 l < r：相遇处即全局最高点，积水为 0，无需特殊处理。\n- 前后缀解法一句话：预处理 pre[i]、suf[i] 后累加 min(pre[i], suf[i]) − height[i]，思路最直白但需 O(n) 空间。",
+      "code": "class Solution {\npublic:\n    int trap(vector<int>& height) {\n        int ans = 0, l = 0, r = (int)height.size() - 1;\n        int preMax = 0, sufMax = 0; // 两侧已扫过部分的最大高度\n        while (l < r) {\n            preMax = max(preMax, height[l]);\n            sufMax = max(sufMax, height[r]);\n            if (preMax < sufMax) {            // 左端水位由 preMax 唯一确定\n                ans += preMax - height[l++];\n            } else {\n                ans += sufMax - height[r--];\n            }\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-3",
+      "title": "3. 无重复字符的最长子串",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "滑动窗口与子串"
+      ],
+      "lang": "cpp",
+      "body": "考点：不定长滑动窗口、哈希记录字符\n\n【思路】要求\"最长且无重复\"，越长的窗口越难满足，天然是\"求最大窗口\"型的不定长滑窗。用数组 cnt 统计窗口内每个字符的出现次数，右指针不断扩窗；一旦新进来的字符计数超过 1，说明出现重复，左指针右移并递减计数，直到该字符不再重复。这样每一步窗口都合法，用窗口长度更新答案。\n\n【复杂度】时间 O(n)，左右指针各最多前进 n 步；空间 O(|Σ|)，固定 128 个字符的计数数组。\n\n【要点】\n- 通用模板：右端进窗 → while (不合法) 左端出窗 → 更新答案，适用于绝大多数\"求最大窗口\"的滑窗题。\n- 收缩条件也可以改成\"记录每个字符上次出现的位置，直接把 left 跳到重复位置之后\"，两种写法等价，本写法不易漏更新。",
+      "code": "class Solution {\npublic:\n    int lengthOfLongestSubstring(string s) {\n        int cnt[128] = {};                 // 窗口内每个字符的出现次数\n        int ans = 0, left = 0;\n        for (int right = 0; right < (int)s.size(); right++) {\n            cnt[s[right]]++;               // s[right] 进入窗口\n            while (cnt[s[right]] > 1) {    // 出现重复，收缩左端直到去掉重复\n                cnt[s[left++]]--;\n            }\n            ans = max(ans, right - left + 1);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-438",
+      "title": "438. 找到字符串中所有字母异位词",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "滑动窗口与子串"
+      ],
+      "lang": "cpp",
+      "body": "考点：定长滑动窗口、计数数组\n\n【思路】异位词只关心 26 个字母的计数、不关心顺序，且目标窗口长度固定为 |p|，是标准的定长滑窗。维护两个长度 26 的计数数组：need 是 p 的计数，win 是当前窗口的计数。右端字符进窗；当窗口长度超过 m 时左端字符出窗（一进一出）；窗口恰好为 m 时比较两个计数数组是否相等。\n\n【复杂度】时间 O(26n)，每步一次计数数组比较；空间 O(26)。\n\n【要点】\n- 定长滑窗模板：进窗 → 超长则出窗 → 窗口满时判定，判定必须放在出窗之后，保证窗口长度恰好为 m。\n- 进阶：用 diff（计数不相等的字母种数）代替每次 O(26) 的比较，可到严格 O(n)；但字符集仅 26 时直接比较已足够快。",
+      "code": "class Solution {\npublic:\n    vector<int> findAnagrams(string s, string p) {\n        int n = s.size(), m = p.size();\n        if (n < m) return {};\n        vector<int> need(26), win(26), ans;\n        for (char c : p) need[c - 'a']++;\n        for (int i = 0; i < n; i++) {\n            win[s[i] - 'a']++;                  // s[i] 进窗\n            if (i >= m) win[s[i - m] - 'a']--;  // 长度超过 m，最左字符出窗\n            if (i >= m - 1 && win == need)      // 窗口恰好 m 个字符时比较\n                ans.push_back(i - m + 1);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-560",
+      "title": "560. 和为 K 的子数组",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "滑动窗口与子串"
+      ],
+      "lang": "cpp",
+      "body": "考点：前缀和 + 哈希\n\n【思路】记 sum 为遍历到当前元素时的前缀和，子数组 (j, i] 的和为 sum(i) - sum(j)，等于 k 等价于 sum(j) = sum(i) - k。于是从左往右扫，用哈希表记录每个前缀和出现的次数，在位置 i 查表即可累加出\"以 i 结尾、和为 k 的子数组个数\"。初始放入 {0: 1} 表示空前缀，用来统计从下标 0 开始的子数组。\n\n为什么不能用滑动窗口：滑窗的正确性依赖单调性——右端扩窗时和单调增、左端缩窗时和单调减，\"大了缩左端、小了扩右端\"的决策才成立。本题数组含负数，扩窗反而可能让和变小，这个决策依据完全失效，会漏解。识别信号：\"子数组和 + 可能有负数\" → 前缀和 + 哈希；\"子数组和 + 全为正数\" → 才能考虑滑窗。\n\n【复杂度】时间 O(n)，一次遍历、哈希均摊 O(1)；空间 O(n)，哈希表最多存 n 个不同前缀和。\n\n【要点】\n- 必须先查 sum - k、再把 sum 入表，否则 k = 0 时会把当前前缀和自己匹配上，多算。\n- 初值 {0, 1} 不可省：它对应\"从头开始的子数组\"（前缀和本身等于 k 的情形）。",
+      "code": "class Solution {\npublic:\n    int subarraySum(vector<int>& nums, int k) {\n        unordered_map<int, int> cnt{{0, 1}};  // 前缀和 -> 出现次数，空前缀记 0:1\n        int sum = 0, ans = 0;\n        for (int x : nums) {\n            sum += x;\n            if (auto it = cnt.find(sum - k); it != cnt.end())\n                ans += it->second;  // 有这么多个前缀和为 sum-k 的位置\n            cnt[sum]++;\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-239",
+      "title": "239. 滑动窗口最大值",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "滑动窗口与子串"
+      ],
+      "lang": "cpp",
+      "body": "考点：单调递减队列存下标\n\n【思路】朴素做法每个窗口 O(k)，总共 O(nk)。关键观察：窗口内某个元素若比它右边的元素小，它就永远不可能再当最大值（右边那个既比它大、又比它晚出窗），可以直接淘汰。用双端队列存下标、对应值从队头到队尾单调递减：新元素入队前从队尾弹掉所有不超过它的元素；队头即当前窗口最大值，若其下标已滑出窗口则从队头弹出。每个下标至多进队、出队各一次。\n\n【复杂度】时间 O(n)，每个下标至多入队/出队一次；空间 O(k)，队列内下标对应的值递减且都在窗口内。\n\n【要点】\n- 队列必须存下标而非值：判断\"是否滑出窗口\"（下标 <= i-k）需要位置信息，存值无法判断。\n- 弹队尾用 <= 连相等的也弹：保留更晚入队的那个，结果正确且队列更短。",
+      "code": "class Solution {\npublic:\n    vector<int> maxSlidingWindow(vector<int>& nums, int k) {\n        vector<int> ans;\n        deque<int> dq;  // 存下标，对应值单调递减，队头即窗口最大值\n        for (int i = 0; i < (int)nums.size(); i++) {\n            while (!dq.empty() && nums[dq.back()] <= nums[i])\n                dq.pop_back();  // 被弹者更小且更早过期，不可能再成为答案\n            dq.push_back(i);\n            if (dq.front() <= i - k) dq.pop_front();  // 队头滑出窗口\n            if (i >= k - 1) ans.push_back(nums[dq.front()]);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-76",
+      "title": "76. 最小覆盖子串",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "滑动窗口与子串"
+      ],
+      "lang": "cpp",
+      "body": "考点：不定长滑动窗口、need/cnt 计数\n\n【思路】求\"最短的、覆盖 t 全部字符（含重复个数）\"的子串，是\"求最小窗口\"型的不定长滑窗。need 记录 t 中每个字符的需求量，win 记录窗口内的数量，valid 统计\"已凑够需求量的字符种数\"。右端扩窗时某字符恰好凑齐则 valid 加一；当 valid 等于 need 的字符种数时窗口合法，此时尽量收缩左端并记录最短窗口，收缩导致某字符不再凑齐时 valid 减一、停止收缩。\n\n【复杂度】时间 O(|s| + |t|)，左右指针各扫一遍 s；空间 O(|Σ|)，两个哈希表只含出现过的字符。\n\n【要点】\n- valid 按\"字符种数\"计数而非字符总个数：t 有重复字符（如 \"AABC\"）时，某字符数量从\"不够\"变\"凑齐\"才 +1，反之才 -1。\n- 判等时机要准：入窗用 ++win[c] == need[c]、出窗先判 win[d] == need[d] 再减，保证 valid 恰好变化一次。\n- 本题（先扩到合法再收缩求最短）与第 3 题（不合法才收缩求最大）互为\"最小/最大窗口\"模板，值得对照记忆。",
+      "code": "class Solution {\npublic:\n    string minWindow(string s, string t) {\n        unordered_map<char, int> need, win;\n        for (char c : t) need[c]++;\n        int left = 0, valid = 0, start = 0, minLen = INT_MAX;\n        for (int right = 0; right < (int)s.size(); right++) {\n            char c = s[right];\n            if (need.count(c)) {                     // 只关心 t 中出现的字符\n                if (++win[c] == need[c]) valid++;    // 该字符恰好凑齐\n            }\n            while (valid == (int)need.size()) {      // 窗口已覆盖 t，尽量收缩\n                if (right - left + 1 < minLen) {\n                    start = left;\n                    minLen = right - left + 1;\n                }\n                char d = s[left++];\n                if (need.count(d)) {\n                    if (win[d] == need[d]) valid--;  // 收缩导致该字符不够了\n                    win[d]--;\n                }\n            }\n        }\n        return minLen == INT_MAX ? \"\" : s.substr(start, minLen);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-53",
+      "title": "53. 最大子数组和",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：Kadane 前缀和思想\n\n【思路】定义 pre 为\"以当前元素结尾的最大子数组和\"，转移只有两种选择：把前面的 pre 接上（pre + nums[i]），或丢弃历史另起炉灶（nums[i]）——当且仅当 pre 为负时另起更优，即 pre = max(pre + nums[i], nums[i])。全局答案就是所有 pre 的最大值。这本质是最简单的线性 DP：结尾位置确定后，历史只通过 pre 影响未来，无后效性；也可以从\"前缀和之差、维护历史最小前缀和\"的角度推出同样的式子。\n\n【复杂度】时间 O(n)，一次遍历；空间 O(1)，只维护两个变量。\n\n【要点】\n- ans 初始化为 nums[0] 而不是 0：数组可能全为负，\"空子数组\"不是合法答案。\n- 前缀和视角：最大子数组和 = max(prefix[i] - min(prefix[0..i-1]))，边扫边维护历史最小前缀，与 Kadane 等价。",
+      "code": "class Solution {\npublic:\n    int maxSubArray(vector<int>& nums) {\n        int ans = nums[0];\n        int pre = nums[0];  // pre：以当前元素结尾的最大子数组和\n        for (int i = 1; i < (int)nums.size(); i++) {\n            pre = max(pre + nums[i], nums[i]);  // 前缀为负是\"负资产\"，不如从头开始\n            ans = max(ans, pre);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-56",
+      "title": "56. 合并区间",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：按左端点排序后合并\n\n【思路】无序的区间难以判断重叠，先按左端点排序；此时能与当前区间重叠的，只会是结果中最后一个区间。线性扫描：若当前区间左端 <= 末尾区间的右端，说明重叠（相交或相接），把末尾区间的右端更新为两者较大值；否则当前区间自成一块加入结果。排序把\"任意两两判断\"简化成了\"只看前一个\"，这是一切区间题的通用起手式。\n\n【复杂度】时间 O(n log n)，瓶颈在排序，扫描本身 O(n)；空间 O(log n)，排序递归栈（不计返回结果）。\n\n【要点】\n- 更新右端必须取 max：排序只保证左端有序，后出现的区间可能整体被前一区间包含（如 [1,10] 和 [2,3]）。\n- 判重叠用 <=：[1,3] 与 [3,5] 相接也算重叠，合并为 [1,5]（题目要求）。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> merge(vector<vector<int>>& intervals) {\n        sort(intervals.begin(), intervals.end());  // 默认字典序即按左端点排序\n        vector<vector<int>> ans;\n        for (auto& p : intervals) {\n            if (!ans.empty() && p[0] <= ans.back()[1])      // 与上一块重叠/相接\n                ans.back()[1] = max(ans.back()[1], p[1]);   // 扩展右端\n            else\n                ans.push_back(p);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-189",
+      "title": "189. 轮转数组",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：三次翻转\n\n【思路】右移 k 位后，原数组的后 k 个元素跑到前面、前 n-k 个整体后移。技巧是\"先整体翻转，再分段翻转\"：整体翻转让后 k 个元素就位到前端（但段内是逆序的），再分别翻转前 k 个和后 n-k 个恢复段内顺序。三次翻转共 O(n) 且完全原地，避免了额外数组，也绕开了环状替换的下标/gcd 讨论。\n\n【复杂度】时间 O(n)，每个元素被翻转触碰常数次；空间 O(1)，原地交换。\n\n【要点】\n- 忘记 k %= n 是最常见错误：k 可远大于 n，不取模会翻转越界。\n- 演示：[1,2,3,4,5,6,7], k=3 → 整体 [7,6,5,4,3,2,1] → 前 3 个 [5,6,7,4,3,2,1] → 后 4 个 [5,6,7,1,2,3,4]。",
+      "code": "class Solution {\npublic:\n    void rotate(vector<int>& nums, int k) {\n        int n = nums.size();\n        k %= n;                                  // k 可能大于 n，先取模\n        reverse(nums.begin(), nums.end());       // 1. 整体翻转\n        reverse(nums.begin(), nums.begin() + k); // 2. 翻转前 k 个\n        reverse(nums.begin() + k, nums.end());   // 3. 翻转后 n-k 个\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-238",
+      "title": "238. 除自身以外数组的乘积",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：前后缀乘积\n\n【思路】answer[i] = (i 左边所有数的乘积) × (i 右边所有数的乘积)。先从左往右扫，把\"左侧前缀乘积\"直接写进 answer 数组；再从右往左扫，用一个变量维护右侧后缀乘积，边乘边更新。因为从未计算总乘积，自然不需要除法——除法方案还会被 0 和溢出问题破坏。\n\n【复杂度】时间 O(n)，两趟扫描；空间 O(1)，输出数组之外只用一个后缀变量（输出数组不计入额外空间）。\n\n【要点】\n- 第二趟中 ans[i] *= suf 必须在 suf *= nums[i] 之前，否则会把 nums[i] 自己乘进去。\n- \"前后缀分解\"是通用套路：凡是\"除自身外的聚合值\"（和、乘积、最值）都可以拆成左右两半分别预处理。",
+      "code": "class Solution {\npublic:\n    vector<int> productExceptSelf(vector<int>& nums) {\n        int n = nums.size();\n        vector<int> ans(n, 1);\n        int pre = 1;\n        for (int i = 0; i < n; i++) {  // 第一趟：ans[i] = nums[0..i-1] 的乘积\n            ans[i] = pre;\n            pre *= nums[i];\n        }\n        int suf = 1;\n        for (int i = n - 1; i >= 0; i--) {  // 第二趟：再乘 nums[i+1..n-1] 的乘积\n            ans[i] *= suf;\n            suf *= nums[i];\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-41",
+      "title": "41. 缺失的第一个正数",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：原地哈希（把 nums[i] 放到下标 i-1）\n\n【思路】答案一定落在 [1, n+1]：若 1..n 全部出现则答案是 n+1，否则是其中缺失的最小正数。于是让\"值 v\"住进\"下标 v-1\"，像归位扑克牌一样原地交换：扫描每个位置，只要 nums[i] 在 [1,n] 且它该去的位置还没放对，就把它换过去。归位完成后，第一个 nums[i] != i+1 的下标 i 给出答案 i+1；全部对上则答案为 n+1。\n\n【复杂度】时间 O(n)，看似双重循环，但每次 swap 都让一个元素永久归位，总交换次数不超过 n；空间 O(1)，直接在原数组上操作。\n\n【要点】\n- while 条件中的 nums[nums[i] - 1] != nums[i] 防止重复元素导致死循环（两个相同值互换不完）。\n- 用 while 而不是 if：换来的新元素可能也需要归位，必须继续换到当前位置放对为止。",
+      "code": "class Solution {\npublic:\n    int firstMissingPositive(vector<int>& nums) {\n        int n = nums.size();\n        for (int i = 0; i < n; i++) {\n            // 原地哈希：把值 v (1<=v<=n) 换到下标 v-1，直到当前位置放对或换不动\n            while (nums[i] >= 1 && nums[i] <= n && nums[nums[i] - 1] != nums[i])\n                swap(nums[i], nums[nums[i] - 1]);\n        }\n        for (int i = 0; i < n; i++)\n            if (nums[i] != i + 1) return i + 1;\n        return n + 1;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-73",
+      "title": "73. 矩阵置零",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：用首行首列做标记，O(1) 空间\n\n【思路】难点是空间限制——先收集零的位置再统一置零需要 O(m+n) 标记。观察：matrix[i][0] 与 matrix[0][j] 本身就是第 i 行、第 j 列的\"官方位置\"，可以征用它们做标记；但首行、首列自身是否含 0 必须先用两个布尔值单独记下，否则标记会覆盖真实信息。流程：记录首行首列状态 → 扫描内部区域，遇 0 就在对应首行/首列打标记 → 按标记置零内部 → 最后根据布尔值处理首行首列。\n\n【复杂度】时间 O(mn)，常数遍矩阵；空间 O(1)，只有两个布尔变量。\n\n【要点】\n- 顺序不能乱：先给内部打标记、再置零内部、最后才动首行首列——提前动首行会污染标记信息。\n- 首行/首列的处理只依赖最初记录的两个布尔值，与内部标记完全解耦。",
+      "code": "class Solution {\npublic:\n    void setZeroes(vector<vector<int>>& matrix) {\n        int m = matrix.size(), n = matrix[0].size();\n        bool firstRow = false, firstCol = false;\n        for (int j = 0; j < n; j++)\n            if (matrix[0][j] == 0) firstRow = true;  // 先记下首行是否本来就有 0\n        for (int i = 0; i < m; i++)\n            if (matrix[i][0] == 0) firstCol = true;\n        for (int i = 1; i < m; i++)\n            for (int j = 1; j < n; j++)\n                if (matrix[i][j] == 0)\n                    matrix[i][0] = matrix[0][j] = 0;  // 征用首行首列做标记\n        for (int i = 1; i < m; i++)\n            for (int j = 1; j < n; j++)\n                if (matrix[i][0] == 0 || matrix[0][j] == 0)\n                    matrix[i][j] = 0;                 // 按标记置零内部\n        if (firstRow)\n            for (int j = 0; j < n; j++) matrix[0][j] = 0;  // 最后处理首行\n        if (firstCol)\n            for (int i = 0; i < m; i++) matrix[i][0] = 0;  // 最后处理首列\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-54",
+      "title": "54. 螺旋矩阵",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：边界收缩模拟\n\n【思路】用 top/bottom/left/right 四条边界圈定未遍历区域，按\"左→右、上→下、右→左、下→上\"走完一圈的每条边后，立即收缩对应边界。每走完一条边就检查一次边界是否交叉（如 ++top > bottom），一旦交叉说明全部元素已输出，及时 break——这样\"只剩一行或一列\"的退化情形被天然处理，无需额外特判。\n\n【复杂度】时间 O(mn)，每个元素恰好访问一次；空间 O(1)，不计输出数组。\n\n【要点】\n- \"每走完一条边立刻收缩并判空\"是这个写法不出错的关键，比\"按圈数循环 + 末尾特判剩余行/列\"少一堆边界讨论。\n- 四次判空与四条边一一对应，记忆方式：走完哪条边就收缩哪条边界。",
+      "code": "class Solution {\npublic:\n    vector<int> spiralOrder(vector<vector<int>>& matrix) {\n        int top = 0, bottom = matrix.size() - 1;\n        int left = 0, right = matrix[0].size() - 1;\n        vector<int> ans;\n        while (true) {\n            for (int j = left; j <= right; j++) ans.push_back(matrix[top][j]);    // 左→右\n            if (++top > bottom) break;\n            for (int i = top; i <= bottom; i++) ans.push_back(matrix[i][right]);  // 上→下\n            if (--right < left) break;\n            for (int j = right; j >= left; j--) ans.push_back(matrix[bottom][j]); // 右→左\n            if (--bottom < top) break;\n            for (int i = bottom; i >= top; i--) ans.push_back(matrix[i][left]);   // 下→上\n            if (++left > right) break;\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-48",
+      "title": "48. 旋转图像",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：转置 + 水平翻转\n\n【思路】顺时针旋转 90° 可拆成两步：先沿主对角线转置（(i,j) ↔ (j,i)），再把每行水平翻转。由坐标变换验证：旋转把 (i,j) 送到 (j, n-1-i)，而\"转置送到 (j,i)、再水平翻转送到 (j, n-1-i)\"，两者一致。两步都原地完成，避免了分层旋转的四向循环赋值。\n\n【复杂度】时间 O(n²)，每个元素被移动常数次；空间 O(1)，原地交换。\n\n【要点】\n- 转置内层必须写 j < i 只扫上三角；写成 j < n 会把每对元素换两次，等于没转。\n- 逆时针旋转 90° 则是\"转置 + 每列上下翻转\"，同一套思路按方向微调。",
+      "code": "class Solution {\npublic:\n    void rotate(vector<vector<int>>& matrix) {\n        int n = matrix.size();\n        for (int i = 0; i < n; i++)             // 1. 沿主对角线转置\n            for (int j = 0; j < i; j++)\n                swap(matrix[i][j], matrix[j][i]);\n        for (auto& row : matrix)                // 2. 每行水平翻转\n            reverse(row.begin(), row.end());\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-240",
+      "title": "240. 搜索二维矩阵 II",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "数组与矩阵"
+      ],
+      "lang": "cpp",
+      "body": "考点：从右上角出发的 BST 式搜索\n\n【思路】矩阵每行从左到右递增、每列从上到下递增。站在右上角：当前元素是所在行的最大值、所在列的最小值——比 target 大则整列（含本行右侧）都可排除，左移；比 target 小则整行（含本列上方）都可排除，下移。每次比较排除一行或一列，行为恰似在 BST 上查找。左下角同理、方向相反；而左上/右下两个方向同增同减，无法决策。\n\n【复杂度】时间 O(m + n)，每步排除一行或一列，最多走 m + n - 1 步；空间 O(1)。\n\n【要点】\n- 起点必须选\"角\"（右上或左下），它们才同时携带行、列两个方向的单调信息。\n- 本题（LeetCode 240）只保证行内、列内有序，行与行之间可以重叠，不能整体二分；LeetCode 74 那种\"下一行首元素大于上一行末元素\"的矩阵才能当成一维有序数组二分到 O(log mn)。",
+      "code": "class Solution {\npublic:\n    bool searchMatrix(vector<vector<int>>& matrix, int target) {\n        int i = 0, j = matrix[0].size() - 1;  // 从右上角出发\n        while (i < (int)matrix.size() && j >= 0) {\n            if (matrix[i][j] == target) return true;\n            if (matrix[i][j] > target) j--;   // 大于 target：本行右侧全排除，左移\n            else i++;                         // 小于 target：本列上方全排除，下移\n        }\n        return false;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-160",
+      "title": "160. 相交链表",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：双指针走 a+c+b 路径\n\n【思路】若两链表相交，从交点开始是同一条尾巴，设 A 独有长 a、B 独有长 b、公共尾长 c。让 p 从 headA、q 从 headB 同时出发，走到尽头就换到另一条链表的头，则 p 走 a+c+b、q 走 b+c+a，路程相等。若有交点，二者恰好同时在交点\"到站\"；若不相交（c=0），二者会在同一轮同时变成 nullptr，循环结束返回空。本质是用换道拼接两条链表、消除长度差，无需先量长度。\n\n【复杂度】时间 O(a+b)（每个指针最多走完两条链表之和）；空间 O(1)（只用两个指针）。\n\n【要点】\n- p = p ? p->next : headB 一行同时完成\"前进\"与\"换道\"，保证两边步数始终同步。\n- 不相交时两指针在同一轮同时变 nullptr 而退出，不要写成\"p 为空就立刻返回 nullptr\"，那样长度差没有补齐。",
+      "code": "class Solution {\npublic:\n    ListNode *getIntersectionNode(ListNode *headA, ListNode *headB) {\n        ListNode *p = headA, *q = headB;\n        while (p != q) {\n            p = p ? p->next : headB;   // 走到头就换道\n            q = q ? q->next : headA;\n        }\n        return p;                      // 相交返回交点，不相交同时为空\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-206",
+      "title": "206. 反转链表",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：迭代三指针\n\n【思路】链表只能顺着 next 走，所以反转要\"边走边改向\"——把 cur->next 从指向后继改成指向前驱。改向前必须先用 nxt 暂存后继，否则链就断了。维护循环不变量：prev 是已反转段的头、cur 是未处理段的头；循环结束时 cur 为空，prev 就是新头。\n\n【复杂度】时间 O(n)（一遍扫描）；空间 O(1)（三个指针）。\n\n【要点】\n- \"先存 nxt 再改 next\"的顺序不能反，反了链表直接断裂。\n- 这是链表题的母模板，234/148/25 都在复用\"反转一段区间\"的逻辑，务必背熟。",
+      "code": "class Solution {\npublic:\n    ListNode* reverseList(ListNode* head) {\n        ListNode *prev = nullptr, *cur = head;\n        while (cur) {\n            ListNode* nxt = cur->next; // 先暂存后继，防止断链\n            cur->next = prev;          // 改向\n            prev = cur;\n            cur = nxt;\n        }\n        return prev;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-234",
+      "title": "234. 回文链表",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：快慢指针找中点+反转后半段\n\n【思路】链表不能随机访问、也不好从后往前走，但回文等价于\"前半段与反转后的后半段一致\"。先用快慢指针找中点：fast 每次走两步、slow 走一步，fast 到头时 slow 停在前半段末尾。把 slow->next 起的后半段用 206 的模板原地反转，再让头指针与后半段指针同步比较，全部相等即回文。\n\n【复杂度】时间 O(n)（找中点、反转、比较各一趟线性）；空间 O(1)（后半段原地反转）。\n\n【要点】\n- 快指针步进条件用 fast->next && fast->next->next，奇偶长度下 slow 都停在前半段末尾，断点统一是 slow->next。\n- 比较循环以反转后的后半段（较短的一侧）为条件，天然规避奇数长度中点问题；如需恢复原链表，比较完把后半段再反转回去接上即可。",
+      "code": "class Solution {\n    ListNode* reverse(ListNode* head) {          // 复用 206 模板\n        ListNode *prev = nullptr, *cur = head;\n        while (cur) {\n            ListNode* nxt = cur->next;\n            cur->next = prev;\n            prev = cur;\n            cur = nxt;\n        }\n        return prev;\n    }\npublic:\n    bool isPalindrome(ListNode* head) {\n        ListNode *slow = head, *fast = head;\n        while (fast->next && fast->next->next) { // slow 停在前半段末尾\n            slow = slow->next;\n            fast = fast->next->next;\n        }\n        ListNode *p1 = head, *p2 = reverse(slow->next);\n        while (p2) {                             // 用较短的后半段做条件\n            if (p1->val != p2->val) return false;\n            p1 = p1->next;\n            p2 = p2->next;\n        }\n        return true;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-141",
+      "title": "141. 环形链表",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：Floyd 快慢指针判环\n\n【思路】如果链表有环，fast 每步比 slow 多走一步，进入环后两者距离每步缩小 1，必然追上重合；无环则 fast 会先碰到空指针。于是令 slow 每次走 1 步、fast 每次走 2 步，两者相遇即有环——这就是 Floyd 判圈算法，选它的原因是不需要额外空间记录访问过的节点。\n\n【复杂度】时间 O(n)（相遇前 slow 最多走一圈多一点）；空间 O(1)（两个指针）。\n\n【要点】\n- 判相等放在\"各走一步之后\"比较，不能用 while (slow != fast) 直接当循环条件——初始两者都指向 head 会误判无环。\n- 循环条件 fast && fast->next 同时防住 fast 与 fast->next 两次越界。",
+      "code": "class Solution {\npublic:\n    bool hasCycle(ListNode *head) {\n        ListNode *slow = head, *fast = head;\n        while (fast && fast->next) {\n            slow = slow->next;\n            fast = fast->next->next;\n            if (slow == fast) return true;  // 环内追上\n        }\n        return false;                       // fast 到头，无环\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-142",
+      "title": "142. 环形链表 II",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：Floyd 相遇后从头再走\n\n【思路】设头到入环口距离 a、入环口到相遇点距离 b、环长 r。相遇时 fast 路程是 slow 的两倍：a+b+n·r = 2(a+b)，化简得 a = (n−1)·r + (r−b)。这说明从相遇点出发走 r−b 步再绕若干整圈，与从头走 a 步会同时到达入环口。于是相遇后另立一个指针从 head 出发，与 slow 同速前进，再次相遇的位置就是入环口。\n\n【复杂度】时间 O(n)（判圈与定位两趟线性扫描）；空间 O(1)。\n\n【要点】\n- 核心是路程方程推出的 a=(n−1)r+(r−b)，面试记住\"一个从头、一个从相遇点、同速前进\"这个固定套路即可。\n- 第二阶段两个指针速度都必须是 1，一快一慢就会错过入环口。",
+      "code": "class Solution {\npublic:\n    ListNode *detectCycle(ListNode *head) {\n        ListNode *slow = head, *fast = head;\n        while (fast && fast->next) {\n            slow = slow->next;\n            fast = fast->next->next;\n            if (slow == fast) {            // 相遇：从头再走\n                ListNode* p = head;\n                while (p != slow) {\n                    p = p->next;\n                    slow = slow->next;\n                }\n                return p;                  // 再次相遇处即入环口\n            }\n        }\n        return nullptr;                    // 无环\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-21",
+      "title": "21. 合并两个有序链表",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：虚拟头节点\n\n【思路】两条链表已经有序，做归并即可：比较两个当前头，把较小者接到结果尾部并后移。引入虚拟头节点 dummy，省掉\"结果头节点是谁\"的分类讨论，tail 始终指向结果尾。一条走完后，另一条剩余部分天然有序，整段接上。\n\n【复杂度】时间 O(m+n)（每个节点至多访问一次）；空间 O(1)（只重接原节点，不新建）。\n\n【要点】\n- \"dummy + tail\"是所有拼接类题目的通用骨架，23/148 直接复用这里的 merge。\n- 退出循环后别忘了 tail->next = list1 ? list1 : list2，这是归并最容易漏的一行。",
+      "code": "class Solution {\npublic:\n    ListNode* mergeTwoLists(ListNode* list1, ListNode* list2) {\n        ListNode dummy(0);\n        ListNode* tail = &dummy;\n        while (list1 && list2) {\n            if (list1->val <= list2->val) { tail->next = list1; list1 = list1->next; }\n            else                          { tail->next = list2; list2 = list2->next; }\n            tail = tail->next;\n        }\n        tail->next = list1 ? list1 : list2; // 接上剩余整段\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-2",
+      "title": "2. 两数相加",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：模拟进位\n\n【思路】数字逆序存放意味着个位在链表头，两条链表同步遍历就是从低位到高位相加，天然对齐无需补零。每一位计算 sum = 两表当前值 + 进位，新节点存 sum%10，进位 carry = sum/10 带入下一位；某条链表走空就按 0 处理。用 dummy 收集结果节点，循环条件带上 carry，保证最高位再进位时（如 5+5）多建一个节点。\n\n【复杂度】时间 O(max(m,n))（逐位相加走完较长者）；空间 O(1)（不计必须新建的结果链表）。\n\n【要点】\n- 循环条件 l1 || l2 || carry 三合一，是处理末位进位的关键，漏掉 carry 会在 5+5 这类用例出错。\n- \"空指针跳过累加、先求和再后移\"的写法让两链表长度不等时也不需要收尾补段。",
+      "code": "class Solution {\npublic:\n    ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {\n        ListNode dummy(0);\n        ListNode* tail = &dummy;\n        int carry = 0;\n        while (l1 || l2 || carry) {\n            int sum = carry;\n            if (l1) { sum += l1->val; l1 = l1->next; }\n            if (l2) { sum += l2->val; l2 = l2->next; }\n            carry = sum / 10;\n            tail->next = new ListNode(sum % 10); // 新建节点存本位\n            tail = tail->next;\n        }\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-19",
+      "title": "19. 删除链表的倒数第 N 个结点",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：快慢指针间隔 n\n\n【思路】删除倒数第 n 个节点必须站在它的前驱上，而单向链表无法回头，于是用\"间隔 n\"的快慢指针：fast 先走 n 步拉开差距，之后快慢同步前进；当 fast 停在最后一个节点时，slow 恰好停在倒数第 n+1 个（即被删节点的前驱）上，跨过被删节点即可。头节点也可能被删，用 dummy 统一起点。\n\n【复杂度】时间 O(L)（一趟扫描，L 为链表长度）；空间 O(1)。\n\n【要点】\n- fast 停在\"最后一个节点\"（fast->next 为空）而不是空指针上，slow 才正好落在前驱；若让 fast 走到空，slow 会多退一位。\n- dummy 让\"删头\"与\"删中间\"代码统一，是本题唯一必要的技巧。",
+      "code": "class Solution {\npublic:\n    ListNode* removeNthFromEnd(ListNode* head, int n) {\n        ListNode dummy(0, head);\n        ListNode *fast = &dummy, *slow = &dummy;\n        for (int i = 0; i < n; i++) fast = fast->next; // fast 先走 n 步\n        while (fast->next) {          // fast 停在最后一个节点\n            fast = fast->next;\n            slow = slow->next;\n        }\n        ListNode* del = slow->next;   // slow 即被删节点的前驱\n        slow->next = del->next;\n        delete del;\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-24",
+      "title": "24. 两两交换链表中的节点",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：虚拟头节点+指针操作\n\n【思路】交换相邻一对 (a,b) 要改三条边：prev->next=b、b->next=a、a->next=后一对的头。因为第一对的前驱本来不存在，用 dummy 兜底；prev 始终维护\"当前对的前驱\"，每交换完一对就移到 a（新组尾）。凑不满一对（剩单个节点）时保持原样。\n\n【复杂度】时间 O(n)（每个节点访问一次）；空间 O(1)。\n\n【要点】\n- 三条边的赋值顺序必须是先 a->next = b->next 保存后继，再改 b->next、prev->next，写反会断链。\n- 循环条件 prev->next && prev->next->next 保证凑满一对才交换，同时防越界。",
+      "code": "class Solution {\npublic:\n    ListNode* swapPairs(ListNode* head) {\n        ListNode dummy(0, head);\n        ListNode* prev = &dummy;\n        while (prev->next && prev->next->next) {\n            ListNode* a = prev->next;\n            ListNode* b = a->next;\n            a->next = b->next;  // 先保存后继\n            b->next = a;        // b 指回 a\n            prev->next = b;     // 前驱改接 b\n            prev = a;           // a 是交换后的组尾\n        }\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-25",
+      "title": "25. K 个一组翻转链表",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：分组反转、prev/groupPrev\n\n【思路】把链表按 k 个一组处理：先从当前位置向后数 k 个，数不满就结束（不足部分保持原序）；数够了就把这一组原地反转（206 模板，终止条件换成组尾之后），再接回前面的部分。groupPrev 指向上一组反转后的组尾（即下一组的前驱），反转后原组头变组尾，它就是下一轮的 groupPrev。dummy 使第一组也有统一前驱。\n\n【复杂度】时间 O(n)（每个节点常数次进出）；空间 O(1)（原地分组反转）。\n\n【要点】\n- \"先数 k 个、kth 为空就 break\"是正确性与防越界的关键，不足 k 个的尾段绝不能反转。\n- 区间反转起点是 prev=组尾之后、cur=组头，终止条件 cur != groupNext；反转完 groupPrev->next=kth、groupPrev=原组头，该框架可直接迁移到\"反转链表 II\"等题。",
+      "code": "class Solution {\npublic:\n    ListNode* reverseKGroup(ListNode* head, int k) {\n        ListNode dummy(0, head);\n        ListNode* groupPrev = &dummy;\n        while (true) {\n            // 从 groupPrev 向后数 k 个，kth 为本组最后一个\n            ListNode* kth = groupPrev;\n            for (int i = 0; i < k && kth; i++) kth = kth->next;\n            if (!kth) break;                  // 不足 k 个，保持原序\n            ListNode* groupNext = kth->next;\n            // 反转 [groupPrev->next, kth]\n            ListNode *prev = groupNext, *cur = groupPrev->next;\n            while (cur != groupNext) {\n                ListNode* nxt = cur->next;\n                cur->next = prev;\n                prev = cur;\n                cur = nxt;\n            }\n            ListNode* newTail = groupPrev->next; // 原组头，反转后成组尾\n            groupPrev->next = kth;               // 接上新组头\n            groupPrev = newTail;                 // 进入下一组\n        }\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-138",
+      "title": "138. 随机链表的复制",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希表 或 原地拼接法\n\n【思路】新链表的 next/random 要指向\"对应的新节点\"，但遍历时 random 指向的拷贝可能还没建出来，所以必须先建后连，用哈希表记下 原节点→新节点 的映射。第一遍为每个原节点 new 一个拷贝；第二遍按映射接边：mp[cur]->next = mp[cur->next]，random 同理。unordered_map 的 operator[] 对缺失键（含 nullptr）返回 nullptr，恰好让空指针也被正确\"映射\"。\n\n【复杂度】时间 O(n)（建点、连线两趟线性）；空间 O(n)（哈希表存 n 项映射）。\n\n【要点】\n- 必须两趟：先建完全部节点再连线，否则 random 指向的拷贝尚不存在。\n- 进阶 O(1) 空间解法是原地拼接：新节点插在原节点后面成 1→1'→2→2'，random 用 cur->random->next 直接取，最后拆成两条链。",
+      "code": "class Solution {\npublic:\n    Node* copyRandomList(Node* head) {\n        if (!head) return nullptr;\n        unordered_map<Node*, Node*> mp; // 原节点 -> 新节点\n        for (Node* cur = head; cur; cur = cur->next)\n            mp[cur] = new Node(cur->val);\n        for (Node* cur = head; cur; cur = cur->next) {\n            mp[cur]->next   = mp[cur->next];    // nullptr 也被映射为 nullptr\n            mp[cur]->random = mp[cur->random];\n        }\n        return mp[head];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-148",
+      "title": "148. 排序链表",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：归并排序（找中点+合并）\n\n【思路】要求 O(n log n)，而链表不利于快排/堆排的随机访问，归并排序是最自然的选择。自顶向下：快慢指针找中点，断开成两半分别递归排序，再用 21 题的 dummy 归并合起来。找中点时 fast 从 head->next 起步，保证两节点链表的中点落在左半段末尾，递归才能收敛。\n\n【复杂度】时间 O(n log n)（每层合并 O(n)，共 log n 层）；空间 O(log n)（递归栈）。\n\n【要点】\n- fast 必须初始化为 head->next：若从 head 起步，两个节点的链表中点会回到自己，断不开导致死递归。\n- mid->next = nullptr 断链一行不能省，否则递归区间不缩小。\n- 想要 O(1) 空间可改自底向上归并（按 1、2、4… 分组迭代合并），但实现复杂度高不少，面试写自顶向下即可。",
+      "code": "class Solution {\n    ListNode* middle(ListNode* head) {      // slow 停在左半段最后一个节点\n        ListNode *slow = head, *fast = head->next;\n        while (fast && fast->next) {\n            slow = slow->next;\n            fast = fast->next->next;\n        }\n        return slow;\n    }\n    ListNode* merge(ListNode* a, ListNode* b) { // 复用 21 题模板\n        ListNode dummy(0);\n        ListNode* tail = &dummy;\n        while (a && b) {\n            if (a->val <= b->val) { tail->next = a; a = a->next; }\n            else                  { tail->next = b; b = b->next; }\n            tail = tail->next;\n        }\n        tail->next = a ? a : b;\n        return dummy.next;\n    }\npublic:\n    ListNode* sortList(ListNode* head) {\n        if (!head || !head->next) return head; // 空或单节点已有序\n        ListNode* mid = middle(head);\n        ListNode* right = mid->next;\n        mid->next = nullptr;                   // 断开成两半\n        return merge(sortList(head), sortList(right));\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-23",
+      "title": "23. 合并 K 个升序链表",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：小顶堆 或 分治合并\n\n【思路】任一时刻，下个该接到结果上的节点一定是\"k 条链表当前表头中值最小\"的那个——这正是小顶堆的场景。把每条非空链表的头入堆，每次弹出最小节点接到 tail 后，再把它的 next 补进堆，堆中始终最多 k 个节点。每条链表各自保持升序，结果自然整体有序。\n\n【复杂度】时间 O(N log k)（N 为总节点数，每次堆操作 O(log k)）；空间 O(k)（堆内最多 k 个节点）。\n\n【要点】\n- 比较器写 a->val > b->val 才是小顶堆：priority_queue 默认大顶堆，比较器语义与 sort 相反。\n- 入堆前判空（lists 里可能有 nullptr），弹出后补 next；收尾置空防残留指针。\n- 另一等价解法是分治：每轮两两配对合并（复用 21 题 merge），log k 轮，同样 O(N log k)。",
+      "code": "class Solution {\npublic:\n    ListNode* mergeKLists(vector<ListNode*>& lists) {\n        auto cmp = [](ListNode* a, ListNode* b) { return a->val > b->val; }; // 小顶堆\n        priority_queue<ListNode*, vector<ListNode*>, decltype(cmp)> pq(cmp);\n        for (ListNode* node : lists)\n            if (node) pq.push(node);\n        ListNode dummy(0);\n        ListNode* tail = &dummy;\n        while (!pq.empty()) {\n            ListNode* node = pq.top(); pq.pop();\n            tail->next = node;\n            tail = node;\n            if (node->next) pq.push(node->next); // 补充该链的下一个\n        }\n        tail->next = nullptr;\n        return dummy.next;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-146",
+      "title": "146. LRU 缓存",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "链表"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希表+双向链表\n\n【思路】get/put 要 O(1)，查找交给 unordered_map；但\"移到最新/淘汰最旧\"也要 O(1)，只有双向链表能做到——摘除中间节点必须同时知道前驱和后继。二者结合：map 存 key→节点指针，双向链表用两个哨兵 head/tail 串起所有节点，靠头是最新、靠尾是最旧。get 命中就把节点搬到头部；put 已存在则更新并搬头，不存在且已满就删 tail->prev 并从 map 中 erase。\n\n【复杂度】get/put 均时间 O(1)（哈希定位 + 链表摘除/头插都是常数步）；空间 O(capacity)（map 和链表各存至多 capacity 项）。\n\n【要点】\n- 两个哨兵节点消灭\"链表为空/删头/删尾\"的所有特判，remove 与 pushFront 拆成小函数最不易错。\n- put 已存在的 key 是\"更新+提前\"而不是\"插入\"，走淘汰分支会误删别的键。\n- DNode 必须同时存 key 而不只是 val：淘汰时 map 需要用 key 来 erase，而 map 无法从 value 反查。",
+      "code": "class LRUCache {\n    struct DNode {\n        int key, val;\n        DNode *prev, *next;\n        DNode(int k = 0, int v = 0) : key(k), val(v), prev(nullptr), next(nullptr) {}\n    };\n    int cap;\n    unordered_map<int, DNode*> mp; // key -> 节点\n    DNode *head, *tail;            // 哨兵：head 侧最新，tail 侧最旧\n\n    void remove(DNode* node) {     // 摘除任意位置的节点\n        node->prev->next = node->next;\n        node->next->prev = node->prev;\n    }\n    void pushFront(DNode* node) {  // 头插为最新\n        node->next = head->next;\n        node->prev = head;\n        head->next->prev = node;\n        head->next = node;\n    }\n    void moveToHead(DNode* node) { remove(node); pushFront(node); }\n\npublic:\n    LRUCache(int capacity) : cap(capacity) {\n        head = new DNode();\n        tail = new DNode();\n        head->next = tail;         // 空链表：head <-> tail\n        tail->prev = head;\n    }\n    int get(int key) {\n        auto it = mp.find(key);\n        if (it == mp.end()) return -1;\n        moveToHead(it->second);    // 命中即提为最新\n        return it->second->val;\n    }\n    void put(int key, int value) {\n        auto it = mp.find(key);\n        if (it != mp.end()) {      // 已存在：更新并提前，不走淘汰\n            it->second->val = value;\n            moveToHead(it->second);\n            return;\n        }\n        if ((int)mp.size() == cap) {          // 满则淘汰最旧\n            DNode* old = tail->prev;\n            remove(old);\n            mp.erase(old->key);    // 先用 old->key，再 delete\n            delete old;\n        }\n        DNode* node = new DNode(key, value);\n        mp[key] = node;\n        pushFront(node);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-94",
+      "title": "94. 二叉树的中序遍历",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：递归 / 迭代栈\n\n【思路】中序遍历的顺序是\"左—根—右\"，与二叉树的递归定义天然契合：先递归处理左子树，访问当前节点，再递归右子树。迭代写法则用显式栈模拟递归的调用栈：不断把当前节点沿左链压栈，走到最左后弹出访问，再转向右子树重复这一过程。掌握迭代写法是理解\"递归如何被系统栈实现\"的关键，也是面试常见的追问点。\n\n【复杂度】时间 O(n)，每个节点恰好入栈/访问一次；空间 O(h)，递归深度或栈深度等于树高，最坏 O(n)（链状树）。\n\n【要点】\n- 迭代模板是通用的中序框架，调整\"访问\"（push_back）的时机即可改写为前序/后序变体。\n- 外层循环条件必须是 cur || !st.empty()：cur 非空说明还有左链可走，栈非空说明还有节点待访问，二者缺一不可。---",
+      "code": "/* ========== 写法一：递归 ========== */\nclass Solution {\npublic:\n    void dfs(TreeNode* node, vector<int>& res) {\n        if (!node) return;\n        dfs(node->left, res);           // 左\n        res.push_back(node->val);       // 根\n        dfs(node->right, res);          // 右\n    }\n    vector<int> inorderTraversal(TreeNode* root) {\n        vector<int> res;\n        dfs(root, res);\n        return res;\n    }\n};\n\n/* ========== 写法二：迭代（显式栈模拟递归）========== */\nclass Solution {\npublic:\n    vector<int> inorderTraversal(TreeNode* root) {\n        vector<int> res;\n        stack<TreeNode*> st;\n        TreeNode* cur = root;\n        while (cur || !st.empty()) {\n            while (cur) {               // 沿左链一路入栈\n                st.push(cur);\n                cur = cur->left;\n            }\n            cur = st.top(); st.pop();   // 弹出最左节点并访问\n            res.push_back(cur->val);\n            cur = cur->right;           // 转向右子树\n        }\n        return res;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-104",
+      "title": "104. 二叉树的最大深度",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：DFS 后序\n\n【思路】树的深度 = 1 + 左右子树深度的较大值，这是典型的后序遍历（自底向上）分治：先拿到左右子树各自的答案，再拼出当前节点的答案。空节点深度为 0，作为递归边界。也可以用 BFS 层序遍历数层数，但 DFS 一行更简洁。\n\n【复杂度】时间 O(n)，每个节点访问一次；空间 O(h)，递归栈深度为树高，最坏 O(n)。\n\n【要点】\n- 后序分治的万能模板：先递归取左右子树信息，再合并出当前层的结果。\n- 链状树递归深度达 n 层，本题规模下不会栈溢出，但要对此有意识。---",
+      "code": "class Solution {\npublic:\n    int maxDepth(TreeNode* root) {\n        if (!root) return 0;                        // 递归边界：空树深度 0\n        return 1 + max(maxDepth(root->left), maxDepth(root->right));\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-226",
+      "title": "226. 翻转二叉树",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：递归交换\n\n【思路】翻转二叉树就是把每个节点的左右子指针互换，所以递归到每个节点做一次 swap 即可。这是一道经典的\"递归信任\"题：先相信 invertTree 能正确翻转任意子树，再处理当前节点，不要试图在脑中展开整棵树。前序（先交换再递归）和后序（先递归再交换）都正确。\n\n【复杂度】时间 O(n)，每个节点交换一次指针；空间 O(h)，递归栈深度。\n\n【要点】\n- swap(root->left, root->right) 交换的是指针本身，无需逐个修改指向。\n- 若改用中序遍历（先递归左、再交换、再递归右），第二次递归会重复处理已被交换过的子树而出错，建议固定用前序/后序。---",
+      "code": "class Solution {\npublic:\n    TreeNode* invertTree(TreeNode* root) {\n        if (!root) return nullptr;\n        swap(root->left, root->right);   // 交换左右子树（指针整体互换）\n        invertTree(root->left);\n        invertTree(root->right);\n        return root;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-101",
+      "title": "101. 对称二叉树",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：双参数递归比较\n\n【思路】\"整棵树对称\"等价于\"左子树与右子树互为镜像\"，所以不能只写单参数递归，而要用双参数 check(a, b) 比较两个节点：a 的左孩子应对应 b 的右孩子，a 的右孩子应对应 b 的左孩子。两节点都空则对称；一空一非空或值不等则不对称。这个\"双参数比较两棵树\"的姿势也是 100. 相同的树等题的通用套路。\n\n【复杂度】时间 O(n)，每个节点最多被比较一次；空间 O(h)，递归深度为树高。\n\n【要点】\n- 判空顺序不能颠倒：先判\"都空\"，再判\"一空\"，最后才取 val，避免空指针解引用。\n- 双参数递归是处理\"两树比较 / 镜像\"类问题的标准模板，迭代版可用队列成对取出节点实现。---",
+      "code": "class Solution {\npublic:\n    bool check(TreeNode* a, TreeNode* b) {   // 判断 a、b 两棵子树是否互为镜像\n        if (!a && !b) return true;           // 都空：对称\n        if (!a || !b || a->val != b->val) return false;  // 一空一非空或值不等\n        return check(a->left, b->right) && check(a->right, b->left);\n    }\n    bool isSymmetric(TreeNode* root) {\n        return !root || check(root->left, root->right);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-543",
+      "title": "543. 二叉树的直径",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：后序遍历维护最大左右深度和\n\n【思路】直径可以经过任意节点，其长度（边数）等于某个节点处\"左子树深度 + 右子树深度\"的最大值。因此在求深度的后序遍历中\"顺便\"维护答案：每个节点算完左右深度后，用 l + r 更新全局最大值。注意返回给父亲的\"深度\"与用来更新答案的\"直径\"是两个不同的量，这是本题最容易混淆的地方。\n\n【复杂度】时间 O(n)，一次后序遍历；空间 O(h)，递归栈深度。\n\n【要点】\n- 直径以\"边\"计数，所以更新答案是 l + r；而深度返回 max(l, r) + 1，两者不要混。\n- \"递归返回子树信息 + 全局变量维护答案\"是树上统计问题的万能模板，124、437 同款。---",
+      "code": "class Solution {\npublic:\n    int ans = 0;\n    int depth(TreeNode* node) {              // 返回子树深度，顺便更新直径\n        if (!node) return 0;\n        int l = depth(node->left);\n        int r = depth(node->right);\n        ans = max(ans, l + r);               // 经过该节点的路径长 = 左深 + 右深（边数）\n        return max(l, r) + 1;                // 向上提供的深度\n    }\n    int diameterOfBinaryTree(TreeNode* root) {\n        depth(root);\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-102",
+      "title": "102. 二叉树的层序遍历",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：BFS 队列按层\n\n【思路】BFS 用队列逐层扩展，关键在于每轮循环开始时先记录当前队列长度 sz——它恰好等于当前层的节点数。逐个弹出这 sz 个节点、把它们的下一层入队，就能把层与层干净地切开，得到按层分组的数组。无需双队列或哨兵节点。\n\n【复杂度】时间 O(n)，每个节点进出队各一次；空间 O(n)，队列最多容纳最宽一层的节点（可达约 n/2）。\n\n【要点】\n- int sz = q.size() 必须在 for 循环外取好——循环中队列长度不断变化，是最经典的易错点。\n- 这个\"单队列 + 每层计数\"框架可直接迁移到 199 右视图、103 锯齿形层序、515 每层最大值等题。---",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> levelOrder(TreeNode* root) {\n        vector<vector<int>> res;\n        if (!root) return res;\n        queue<TreeNode*> q;\n        q.push(root);\n        while (!q.empty()) {\n            int sz = q.size();               // 关键：先固定本层节点数\n            vector<int> level;\n            for (int i = 0; i < sz; i++) {\n                TreeNode* node = q.front(); q.pop();\n                level.push_back(node->val);\n                if (node->left) q.push(node->left);\n                if (node->right) q.push(node->right);\n            }\n            res.push_back(move(level));\n        }\n        return res;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-108",
+      "title": "108. 将有序数组转换为二叉搜索树",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：取中点递归构建平衡 BST\n\n【思路】要保证构建出的 BST 平衡，每次取当前区间的中点作为根：中点左半部分递归建左子树，右半部分递归建右子树。数组有序保证了 BST 性质自动成立（中点左边的元素都小于它，右边都大于它）；每次对半分又保证左右子树规模接近，树高为 O(log n)。\n\n【复杂度】时间 O(n)，每个元素恰好建一个节点；空间 O(log n)，递归深度（不计返回的树本身）。\n\n【要点】\n- mid = l + (r - l) / 2 的防溢出写法要养成习惯（本题 int 范围内 l + r 实际不会溢出）。\n- 取偏左中点或偏右中点 (l + r + 1) / 2 都能通过，只是生成的树形态不同，均为合法答案。---",
+      "code": "class Solution {\npublic:\n    TreeNode* build(vector<int>& nums, int l, int r) {   // 闭区间 [l, r]\n        if (l > r) return nullptr;\n        int mid = l + (r - l) / 2;       // 取中点作根，保证左右规模平衡\n        TreeNode* node = new TreeNode(nums[mid]);\n        node->left = build(nums, l, mid - 1);\n        node->right = build(nums, mid + 1, r);\n        return node;\n    }\n    TreeNode* sortedArrayToBST(vector<int>& nums) {\n        return build(nums, 0, (int)nums.size() - 1);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-98",
+      "title": "98. 验证二叉搜索树",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：上下界递归 / 中序递增\n\n【思路】常见的错误做法是只比较\"节点与其左右孩子\"——但 BST 的约束来自整棵子树：左子树里的所有节点都必须小于根。正确做法是递归时给每个节点携带一个开区间上下界 (lo, hi)：进入左子树把上界收紧为当前值，进入右子树把下界收紧为当前值。等价做法是做一次中序遍历、检查序列严格递增。用 long long 传边界，防止节点值恰为 INT_MIN / INT_MAX 时越界。\n\n【复杂度】时间 O(n)，每个节点访问一次；空间 O(h)，递归栈深度。\n\n【要点】\n- 只比较父子节点是错的：如 [2,2,2] 会误判合法；约束必须沿路径向下传递。\n- BST 不允许相等，边界判断用 <= / >=；初值用 long long 极值，避开 int 边界值。---",
+      "code": "class Solution {\npublic:\n    bool check(TreeNode* node, long long lo, long long hi) { // 节点值须落在开区间 (lo, hi)\n        if (!node) return true;\n        if (node->val <= lo || node->val >= hi) return false;\n        return check(node->left, lo, node->val)       // 左子树上界收紧\n            && check(node->right, node->val, hi);     // 右子树下界收紧\n    }\n    bool isValidBST(TreeNode* root) {\n        return check(root, LLONG_MIN, LLONG_MAX);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-230",
+      "title": "230. 二叉搜索树中第 K 小的元素",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：中序遍历计数\n\n【思路】BST 的中序遍历结果就是一个升序序列，所以\"第 k 小\"就是中序遍历中第 k 个被访问到的节点。维护一个访问计数器，每访问一个节点计数加一，等于 k 时记录答案。找到目标后即可剪枝提前结束，不必遍历完整棵树。\n\n【复杂度】时间 O(H + k)，最坏 O(n)——最好情况只需先下探到最左节点再走 k 步；空间 O(h)，递归栈深度。\n\n【要点】\n- ++cnt == k 必须写在\"左递归之后、右递归之前\"（即中序\"根\"的位置），位置放错计数顺序就错了。\n- 进阶：若该查询被频繁调用，可给节点维护\"子树节点数\"，实现 O(h) 的序数查询。---",
+      "code": "class Solution {\npublic:\n    int cnt = 0, ans = 0;\n    void dfs(TreeNode* node, int k) {\n        if (!node || cnt >= k) return;       // cnt >= k：已找到，剪枝\n        dfs(node->left, k);                  // 中序：先左\n        if (++cnt == k) ans = node->val;     // 第 k 个被访问的节点\n        dfs(node->right, k);                 // 再右\n    }\n    int kthSmallest(TreeNode* root, int k) {\n        dfs(root, k);\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-199",
+      "title": "199. 二叉树的右视图",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：层序取每层最后一个 / 根右左 DFS\n\n【思路】站在右侧看，每层只能看到该层最右边的节点。用 DFS 按\"根 → 右 → 左\"的顺序遍历，则每层第一个被访问到的节点恰好就是最右节点；用 depth == res.size() 判断当前层是否首次到达，是则记录。BFS 分层取每层最后一个节点同样可行，两者复杂度一致。\n\n【复杂度】时间 O(n)，每个节点最多访问一次；空间 O(h)，递归栈深度（BFS 写法则为队列的 O(w)）。\n\n【要点】\n- depth == res.size() 是\"每层只取第一个访问节点\"的通用判重技巧；把递归顺序换成\"根 → 左 → 右\"就得到左视图。\n- BFS 写法：套用 102 的分层框架，在每层 for 循环中 i == sz - 1 时记录即可。---",
+      "code": "class Solution {\npublic:\n    vector<int> res;\n    void dfs(TreeNode* node, int depth) {\n        if (!node) return;\n        if (depth == (int)res.size())        // 本层首次到达 = 最右节点（根右左顺序保证）\n            res.push_back(node->val);\n        dfs(node->right, depth + 1);         // 先右后左\n        dfs(node->left, depth + 1);\n    }\n    vector<int> rightSideView(TreeNode* root) {\n        dfs(root, 0);\n        return res;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-114",
+      "title": "114. 二叉树展开为链表",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：前驱节点原地 O(1) 空间 / 反向后序\n\n【思路】展开后的顺序就是前序遍历。暴力做法是按\"右 → 左 → 根\"的反向后序遍历依次头插，需要 O(n) 栈空间。更优雅的是 O(1) 空间的\"寻找前驱\"法：对每个有左子树的节点，找到其左子树的最右节点（即前驱），把当前节点的右子树接到前驱的 right 上，再把整个左子树搬到右边、置空 left。处理完后沿 right 走下去恰好就是前序顺序。\n\n【复杂度】时间 O(n)，每个节点最多被\"寻找前驱\"的过程经过常数次；空间 O(1)，只用常数个指针。\n\n【要点】\n- 接线顺序不能乱：先把 cur->right 接到 pre->right，再把左子树搬到 cur->right，最后置空 cur->left，否则右子树会丢失。\n- 这是 Morris 遍历\"找前驱 + 接线\"思想的套用，与 O(n) 的递归/反向后序解法对比着理解效果最好。---",
+      "code": "class Solution {\npublic:\n    void flatten(TreeNode* root) {\n        TreeNode* cur = root;\n        while (cur) {\n            if (cur->left) {\n                TreeNode* pre = cur->left;   // 找左子树的最右节点（前驱）\n                while (pre->right) pre = pre->right;\n                pre->right = cur->right;     // 右子树挂到前驱的右边\n                cur->right = cur->left;      // 左子树整体搬到右边\n                cur->left = nullptr;\n            }\n            cur = cur->right;                // 继续处理下一个节点\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-105",
+      "title": "105. 从前序与中序遍历序列构造二叉树",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：前序定位根、中序分左右、哈希定位\n\n【思路】前序的第一个元素一定是当前树的根；在中序中找到根的位置，其左侧是左子树的中序、右侧是右子树的中序，由此得到左子树长度，进而把前序也切分成对应的左右两段，递归构建。为避免每次在中序中线性查找根，先建立\"值 → 下标\"的哈希表，把定位降到 O(1)。全程用左右闭区间下标描述各段范围。\n\n【复杂度】时间 O(n)，建哈希 O(n)，每个节点递归处理 O(1)；空间 O(n)，哈希表开销，递归栈 O(h)。\n\n【要点】\n- 区间划分是最大易错点：左子树前序区间 [pl+1, pl+leftLen]、右子树 [pl+leftLen+1, pr]，必须与中序区间一一对应。\n- 能用哈希的前提是节点值互不相同（题目已保证）；本套路同样适用于 106 题（中序 + 后序构造）。---",
+      "code": "class Solution {\npublic:\n    unordered_map<int, int> pos;         // 中序值 -> 下标，O(1) 定位根\n    TreeNode* build(vector<int>& pre, int pl, int pr, int il, int ir) {\n        if (pl > pr) return nullptr;\n        TreeNode* root = new TreeNode(pre[pl]);   // 前序首元素是根\n        int k = pos[pre[pl]];                     // 根在中序中的位置\n        int leftLen = k - il;                     // 左子树节点数\n        root->left  = build(pre, pl + 1, pl + leftLen, il, k - 1);\n        root->right = build(pre, pl + leftLen + 1, pr, k + 1, ir);\n        return root;\n    }\n    TreeNode* buildTree(vector<int>& preorder, vector<int>& inorder) {\n        int n = preorder.size();\n        for (int i = 0; i < n; i++) pos[inorder[i]] = i;\n        return build(preorder, 0, n - 1, 0, n - 1);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-437",
+      "title": "437. 路径总和 III",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：前缀和 + 哈希回溯\n\n【思路】路径必须\"向下\"但不必从根开始。设根到当前节点的前缀和为 cur：若祖先中存在某节点处的前缀和等于 cur - target，那么\"那个前缀的下一节点 → 当前节点\"这段路径的和恰好为 target。于是用哈希表统计当前路径上每个前缀和出现的次数，边 DFS 边查询。离开子树时要把计数减回去（回溯），保证哈希里只留祖先的前缀和；前缀和最大可达 1e9 × 1000，必须用 long long 防溢出。\n\n【复杂度】时间 O(n)，每个节点做一次哈希查询与一次更新；空间 O(n)，哈希表，递归栈 O(h)。\n\n【要点】\n- cnt[0] = 1 千万不能漏：它处理\"从根出发的路径恰好等于 target\"的情况。\n- 回溯 cnt[cur]-- 不能省，否则会把非祖先路径的前缀和也算进来；节点值可为负，不能用滑动窗口替代前缀和。---",
+      "code": "class Solution {\npublic:\n    unordered_map<long long, int> cnt;   // 前缀和 -> 出现次数\n    long long target;\n    int ans = 0;\n\n    void dfs(TreeNode* node, long long cur) {    // cur：根到当前节点的前缀和\n        if (!node) return;\n        cur += node->val;\n        auto it = cnt.find(cur - target);        // 祖先中前缀和为 cur-target 的个数\n        if (it != cnt.end()) ans += it->second;  // 每个都对应一条以当前节点结尾的路径\n        cnt[cur]++;                              // 登记当前前缀和\n        dfs(node->left, cur);\n        dfs(node->right, cur);\n        cnt[cur]--;                              // 回溯：撤销，只保留祖先路径上的前缀和\n    }\n\n    int pathSum(TreeNode* root, int targetSum) {\n        target = targetSum;\n        cnt[0] = 1;                              // 空前缀：覆盖\"从根开始\"的路径\n        dfs(root, 0);\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-236",
+      "title": "236. 二叉树的最近公共祖先",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：后序递归分治\n\n【思路】后序递归，在左右子树中分别寻找 p 和 q。若当前节点为空或就是 p/q，直接返回自身；若左右两侧递归结果都非空，说明 p、q 分居两侧，当前节点就是最近公共祖先；若只有一侧非空，则把那一侧的发现继续向上传递。整个算法的本质是\"自底向上汇报目标节点是否出现在子树中\"。\n\n【复杂度】时间 O(n)，每个节点访问一次；空间 O(h)，递归栈深度。\n\n【要点】\n- 直接比较指针而不比较节点值，题目保证值唯一且 p、q 必存在，这样最简洁。\n- \"两边都非空返回当前、否则透传\"是后序分治求 LCA 的标准模板，可推广到普通图/树上多节点 LCA 变体。---",
+      "code": "class Solution {\npublic:\n    TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {\n        if (!root || root == p || root == q) return root;  // 命中空或目标节点\n        TreeNode* left  = lowestCommonAncestor(root->left, p, q);\n        TreeNode* right = lowestCommonAncestor(root->right, p, q);\n        if (left && right) return root;      // p、q 分居两侧：当前节点即 LCA\n        return left ? left : right;          // 否则向上传递找到的那一个\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-124",
+      "title": "124. 二叉树中的最大路径和",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "二叉树"
+      ],
+      "lang": "cpp",
+      "body": "考点：后序遍历，全局变量维护贡献\n\n【思路】路径可以从任意节点出发、在任意节点\"拐弯\"（左右各一条向下链），但不能分叉后回头。定义\"贡献\"：从某节点出发沿一条向下路径能提供的最大和；则节点对父亲的最大贡献为 val + max(左贡献, 右贡献)，负贡献直接舍弃记为 0。而在每个节点处，\"经过它的可拐弯路径的最大和\" = val + 左贡献 + 右贡献，用全局变量在所有节点中取最大。返回值（只能选一条边的贡献）与全局答案（可以拐弯）必须分开，是本题的核心。\n\n【复杂度】时间 O(n)，一次后序遍历；空间 O(h)，递归栈深度。\n\n【要点】\n- 左右贡献为负必须截断为 0，否则负的子链会拖累拐点处的路径和。\n- ans 初始化为 INT_MIN 而非 0：所有节点值可能全为负，答案至少要包含一个节点。\n- 与 543 对比：两者同构，只是把\"深度\"换成了\"带权贡献\"，可以一起复习。",
+      "code": "class Solution {\npublic:\n    int ans = INT_MIN;\n    int gain(TreeNode* node) {               // 返回从 node 出发向下的最大贡献\n        if (!node) return 0;\n        int l = max(gain(node->left), 0);    // 子树贡献为负则舍弃（不选这条边）\n        int r = max(gain(node->right), 0);\n        ans = max(ans, node->val + l + r);   // 以 node 为\"拐点\"的完整路径\n        return node->val + max(l, r);        // 向父亲只能延伸一条边\n    }\n    int maxPathSum(TreeNode* root) {\n        gain(root);\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-200",
+      "title": "200. 岛屿数量",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "图论"
+      ],
+      "lang": "cpp",
+      "body": "考点：DFS 沉岛 / BFS\n\n【思路】岛屿是四连通的 '1' 连通块，于是\"数岛屿\"变成\"数连通块\"：线性扫描网格，每遇到一个没访问过的 '1' 就把计数加一，并从它出发 DFS 把整个连通块\"沉岛\"——把访问到的 '1' 直接改成 '0'。沉岛一举两得：既标记了\"已访问\"，又不用额外的 visited 数组；下一次扫描自然不会重复统计。全图扫完，计数器就是答案。若担心大网格递归爆栈，可换成队列版 BFS，框架完全一样。\n\n【复杂度】时间 O(m·n)，每个格子最多被访问常数次；空间 O(m·n)，最坏（整张图都是陆地）时递归深度达网格面积。\n\n【要点】\n- 沉岛（改 '0'）是\"标记已访问\"的最简写法；若题目不允许修改输入，改用 visited 数组。\n- grid 存的是字符 '1' 不是数字 1，比较时别写错。\n- 四连通只需上下右左四个方向即可覆盖全连通块，无需八连通。",
+      "code": "class Solution {\npublic:\n    int numIslands(vector<vector<char>>& grid) {\n        int m = grid.size(), n = grid[0].size(), cnt = 0;\n        for (int i = 0; i < m; ++i)\n            for (int j = 0; j < n; ++j)\n                if (grid[i][j] == '1') {\n                    ++cnt;\n                    dfs(grid, i, j);          // 沉掉整个连通块\n                }\n        return cnt;\n    }\nprivate:\n    void dfs(vector<vector<char>>& grid, int i, int j) {\n        if (i < 0 || i >= grid.size() || j < 0 || j >= grid[0].size() || grid[i][j] != '1')\n            return;\n        grid[i][j] = '0';                     // 标记：直接改成水\n        dfs(grid, i + 1, j);\n        dfs(grid, i - 1, j);\n        dfs(grid, i, j + 1);\n        dfs(grid, i, j - 1);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-994",
+      "title": "994. 腐烂的橘子",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "图论"
+      ],
+      "lang": "cpp",
+      "body": "考点：多源 BFS\n\n【思路】求\"全部腐烂的最短分钟数\"就是网格上的最短路问题，天然适合 BFS；与普通 BFS 唯一的区别是有多个起点——初始把所有腐烂橘子一起入队，让它们同时向外扩散，扩散的层数就是分钟数。实现：先统计新鲜橘子数 fresh；然后逐层处理队列，每层开始时分钟数加一，把这一层扩展到的新鲜橘子变烂、fresh 减一并入队。BFS 结束时若 fresh 归零则返回分钟数，否则说明有橘子永远够不到，返回 -1。\n\n【复杂度】时间 O(m·n)，每个橘子最多入队一次；空间 O(m·n)，队列中最多同时存在整个网格的橘子。\n\n【要点】\n- 多源 BFS 通用套路：起点全部入队 → 按层扩展，层数即最短时间；01 矩阵、火灾蔓延等题同样适用。\n- \"永远新鲜\"的判断：BFS 结束后 fresh > 0 就返回 -1，不要试图在循环中途判断。\n- 变烂（标记）必须在入队时做，出队时才标记会导致同一格被重复入队。",
+      "code": "class Solution {\npublic:\n    int orangesRotting(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size(), fresh = 0;\n        queue<pair<int, int>> q;\n        for (int i = 0; i < m; ++i)\n            for (int j = 0; j < n; ++j)\n                if (grid[i][j] == 2) q.emplace(i, j);   // 多源：所有烂橘子同时入队\n                else if (grid[i][j] == 1) ++fresh;\n        if (fresh == 0) return 0;                       // 没有新鲜橘子\n        int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1}, minutes = 0;\n        while (!q.empty() && fresh > 0) {\n            ++minutes;                                  // 每处理一层 = 过一分钟\n            for (int sz = q.size(); sz > 0; --sz) {\n                auto [x, y] = q.front(); q.pop();\n                for (int d = 0; d < 4; ++d) {\n                    int nx = x + dx[d], ny = y + dy[d];\n                    if (nx < 0 || nx >= m || ny < 0 || ny >= n || grid[nx][ny] != 1) continue;\n                    grid[nx][ny] = 2;                   // 入队时立刻变烂，防止重复入队\n                    --fresh;\n                    q.emplace(nx, ny);\n                }\n            }\n        }\n        return fresh == 0 ? minutes : -1;               // 还有新鲜的 = 永远烂不完\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-207",
+      "title": "207. 课程表",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "图论"
+      ],
+      "lang": "cpp",
+      "body": "考点：拓扑排序（Kahn BFS），判有向图有无环\n\n【思路】课程与先修关系构成有向图，\"能否修完所有课\"等价于\"图中有没有环\"——有环则环上的课互相等待，永远修不完。判环用拓扑排序（Kahn 算法）：先建邻接表并统计每个点的入度，把入度为 0 的点（无前置课程）入队；每次出队一个点，把它指向的点的入度减一，减到 0 就入队。最后数一数出队了多少个点：全部出队说明无环返回 true；环上的点入度永远降不到 0，出队数会小于课程数。\n\n【复杂度】时间 O(n+e)，n 为课程数、e 为先修关系数，每个点和每条边各处理一次；空间 O(n+e)，邻接表与入度数组。\n\n【要点】\n- 建边方向别搞反：prerequisites[i] = [a, b] 表示修 a 前要先修 b，边是 b→a，a 的入度加一。\n- Kahn 模板（入度数组 + 队列 + 计数）可复用于所有\"能否拓扑排序\"类题。\n- 若要求输出修课顺序（210 题），把出队点按序存下即可，同一模板。",
+      "code": "class Solution {\npublic:\n    bool canFinish(int numCourses, vector<vector<int>>& prerequisites) {\n        vector<vector<int>> g(numCourses);\n        vector<int> indeg(numCourses, 0);\n        for (auto& p : prerequisites) {\n            g[p[1]].push_back(p[0]);        // 边：先修 p[1] → 才能修 p[0]\n            ++indeg[p[0]];\n        }\n        queue<int> q;\n        for (int i = 0; i < numCourses; ++i)\n            if (indeg[i] == 0) q.push(i);   // 入度为 0 的先入队\n        int taken = 0;\n        while (!q.empty()) {\n            int u = q.front(); q.pop();\n            ++taken;\n            for (int v : g[u])\n                if (--indeg[v] == 0) q.push(v);\n        }\n        return taken == numCourses;         // 能全部出队 ⇔ 无环\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-208",
+      "title": "208. 实现 Trie (前缀树)",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "图论"
+      ],
+      "lang": "cpp",
+      "body": "考点：26 叉字典树\n\n【思路】前缀树是一棵 26 叉树，每条边对应一个字母，从根到某节点的路径拼出一个前缀。insert 沿字符逐层下走，缺子节点就新建，走完后在末节点打上\"单词结束\"标记；search 与 startsWith 走的是同一条\"查路\"逻辑，区别只在终点判定——前者要求末节点带结束标记，后者只要求路径存在。为此抽出私有函数 find 返回走到的节点，两个查询接口复用它，代码不重复。\n\n【复杂度】时间 O(L)，L 为单词/前缀长度，三个操作都只走一遍字符；空间 O(26·L)，单次插入最多新建 L 个节点，整体与所有字符总量同阶。\n\n【要点】\n- search 与 startsWith 的唯一差别是是否检查 isEnd，抽 find 复用避免重复代码。\n- 成员 Trie* ch[26]{} 的 {} 不能省，否则指针未初始化是野指针。\n- 题目保证全是小写字母才用 26 叉；字符集大时换成 unordered_map<char, Trie*>。",
+      "code": "class Trie {\nprivate:\n    Trie* ch[26]{};      // 26 个子节点指针，{} 保证初始为 nullptr\n    bool isEnd = false;  // 是否有单词在此结束\n\n    Trie* find(const string& s) {           // 沿字符走到底，返回到达的节点\n        Trie* node = this;\n        for (char c : s) {\n            node = node->ch[c - 'a'];\n            if (!node) return nullptr;\n        }\n        return node;\n    }\n\npublic:\n    Trie() {}\n\n    void insert(string word) {\n        Trie* node = this;\n        for (char c : word) {\n            int i = c - 'a';\n            if (!node->ch[i]) node->ch[i] = new Trie();  // 缺路就建\n            node = node->ch[i];\n        }\n        node->isEnd = true;\n    }\n\n    bool search(string word) {\n        Trie* node = find(word);\n        return node && node->isEnd;      // 必须是完整单词\n    }\n\n    bool startsWith(string prefix) {\n        return find(prefix) != nullptr;  // 路径存在即可\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-46",
+      "title": "46. 全排列",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：used 数组回溯\n\n【思路】排列与组合的区别是\"顺序有关、每个元素都要用上\"，所以不能只靠 start 缩小候选范围，而要为每个元素配一个 used 标记：每层递归从头扫描，凡是没用过的元素都可以作为当前位置的选择，路径长度凑够 n 就收集一个排列。这题是\"三步曲\"最标准的形态：选 nums[i] 置 used → 递归 → pop_back 并清 used，恢复现场后继续尝试下一个候选元素。\n\n【复杂度】时间 O(n·n!)，共 n! 个排列、每个复制进答案要 O(n)（搜索树本身也是 n! 规模）；空间 O(n)，递归深度加 used/path（不计输出）。\n\n【要点】\n- 排列型回溯的标志：每层从 0 扫描 + used 数组；组合/子集型靠 start 参数，两者别混。\n- used 与 path 必须成对撤销，漏掉 used 会让后续排列复用已选元素。\n- 输入无重复时不需要同层去重；有重复（47 题）需先排序再用 used[i-1] 剪枝。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> permute(vector<int>& nums) {\n        vector<vector<int>> ans;\n        vector<int> path;\n        vector<bool> used(nums.size(), false);\n        dfs(nums, used, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(vector<int>& nums, vector<bool>& used, vector<int>& path, vector<vector<int>>& ans) {\n        if (path.size() == nums.size()) {   // 排列凑满，收集\n            ans.push_back(path);\n            return;\n        }\n        for (int i = 0; i < nums.size(); ++i) {\n            if (used[i]) continue;\n            used[i] = true;                 // 1. 选择\n            path.push_back(nums[i]);\n            dfs(nums, used, path, ans);     // 2. 递归\n            path.pop_back();                // 3. 撤销：恢复现场\n            used[i] = false;\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-78",
+      "title": "78. 子集",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：start 参数，每个节点都收集\n\n【思路】子集问题在\"隐式树\"上做回溯：用 start 表示本轮只能从下标 start 往后选，保证每个子集按原顺序生成、不重复。关键观察是每个节点都收集——从根到当前节点的路径本身就是子集，所以进入 dfs 第一件事就是把 path 存入答案，而不是等凑够某个条件才收。每层枚举 i 从 start 开始，选 nums[i]、递归 i+1、撤销，树上全部节点恰好对应 2^n 个子集。\n\n【复杂度】时间 O(n·2^n)，2^n 个子集、每个复制要 O(n)；空间 O(n)，递归深度与 path 长度（不计输出）。\n\n【要点】\n- start 参数是组合/子集型回溯的核心：它保证 [1,3] 与 [3,1] 只出现一个。\n- \"每个节点都收集\"是子集题与组合题（要凑满 target 才收）的本质区别。\n- 输入含重复元素时（90 题），先排序，再在循环里跳过同层重复值。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> subsets(vector<int>& nums) {\n        vector<vector<int>> ans;\n        vector<int> path;\n        dfs(nums, 0, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(vector<int>& nums, int start, vector<int>& path, vector<vector<int>>& ans) {\n        ans.push_back(path);            // 每个节点（每条路径前缀）都是一个子集\n        for (int i = start; i < nums.size(); ++i) {\n            path.push_back(nums[i]);    // 选择\n            dfs(nums, i + 1, path, ans);// 传 i+1：后面的元素才可再选\n            path.pop_back();            // 撤销\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-17",
+      "title": "17. 电话号码的字母组合",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：多路映射回溯\n\n【思路】每个数字按键映射到若干字母，答案就是在映射表上逐位\"选字母\"：第 idx 位从 digits[idx] 对应的字母串里挑一个放进 path，递归处理下一位，长度凑够就收集。这是最朴素的多路回溯——候选集不是数组下标，而是查表得到的字符串，循环枚举的对象从\"元素\"换成了\"映射结果\"。注意 digits 为空时要直接返回空数组，否则回溯会把一个空串收进答案。\n\n【复杂度】时间 O(3^m·4^n)，m/n 分别是映射 3 个、4 个字母的按键个数，每个串复制 O(L)；空间 O(L)，递归深度（不计输出与常量映射表）。\n\n【要点】\n- 映射表下标直接用 digits[idx] - '0'；0/1 无字母，表里留空串即可。\n- 本题与数组型回溯（枚举下标）唯一区别是候选来源是查表，骨架完全一致。\n- 空输入特判放最前面，是这题唯一的坑。",
+      "code": "class Solution {\npublic:\n    vector<string> letterCombinations(string digits) {\n        if (digits.empty()) return {};      // 空串不能进回溯，否则会收到 \"\"\n        const vector<string> mp = {\"\", \"\", \"abc\", \"def\", \"ghi\", \"jkl\", \"mno\", \"pqrs\", \"tuv\", \"wxyz\"};\n        string path;\n        vector<string> ans;\n        dfs(digits, 0, mp, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(const string& digits, int idx, const vector<string>& mp, string& path, vector<string>& ans) {\n        if (idx == digits.size()) {\n            ans.push_back(path);\n            return;\n        }\n        for (char c : mp[digits[idx] - '0']) {  // 该按键的每个字母都是一个分支\n            path.push_back(c);\n            dfs(digits, idx + 1, mp, path, ans);\n            path.pop_back();\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-39",
+      "title": "39. 组合总和",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：可重复选取，start 不 +1\n\n【思路】从候选中挑数字凑出 target，每个数字可无限次使用。用 remain 表示\"还差多少\"：选一个数后 remain 相应减少，减到 0 收集答案，放不下的分支在循环里 continue 剪掉。因为元素可重复选，递归时传 i 而不是 i+1——同一位置还能再选自己；但仍从 i 起枚举而不是从 0 起，保证组合按非降序生成，从而 [2,3] 与 [3,2] 只统计一次。\n\n【复杂度】时间上界 O(n·2^target)（可重复选取使搜索树规模与 target 挂钩，n 为候选个数）；空间 O(target / min(candidates))，即递归最深时每层都放最小候选。\n\n【要点】\n- \"传 i 不传 i+1\"是可重复选取的全部秘密；组合不重复则靠 start（本轮只能从 start 往后选）。\n- remain == 0 收集、remain > 0 继续扩展、循环内剪枝，三层逻辑分开写不易错。\n- 若数组有序，可把 continue 升级为 break（后面更大必放不下），小优化。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> combinationSum(vector<int>& candidates, int target) {\n        vector<vector<int>> ans;\n        vector<int> path;\n        dfs(candidates, 0, target, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(vector<int>& candidates, int start, int remain, vector<int>& path, vector<vector<int>>& ans) {\n        if (remain == 0) {              // 恰好凑出，收集\n            ans.push_back(path);\n            return;\n        }\n        for (int i = start; i < candidates.size(); ++i) {\n            if (candidates[i] > remain) continue;   // 剪枝：这个数放不下\n            path.push_back(candidates[i]);\n            dfs(candidates, i, remain - candidates[i], path, ans); // 传 i：可重复选\n            path.pop_back();\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-22",
+      "title": "22. 括号生成",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：左右括号计数剪枝\n\n【思路】构造长度 2n 的串，每一位只有 '(' 或 ')' 两种选择，但合法括号串满足两个不变量：已放的左括号数 ≤ n；已放的右括号数 ≤ 已放的左括号数。把这两个条件当成剪枝规则：open < n 时可以放 '('，close < open 时可以放 ')'，其余分支直接放弃。递归时同步维护两个计数器，串长到 2n 时必然合法，直接收集——不需要事后校验。\n\n【复杂度】时间 O(4^n/√n)，合法串个数是第 n 个卡特兰数，每个复制 O(n)；空间 O(n)，递归深度与 path 长度。\n\n【要点】\n- 剪枝条件 close < open 是正确性关键；误写成 close < n 会生成非法串。\n- 两个 if 是并列分支而非 if-else：某一位既可以放左也可以放右时，两条路都要走。\n- \"计数器 + 剪枝 + 到长收集\"的模式可复用于所有按规则构造串的题。",
+      "code": "class Solution {\npublic:\n    vector<string> generateParenthesis(int n) {\n        vector<string> ans;\n        string path;\n        dfs(n, 0, 0, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(int n, int open, int close, string& path, vector<string>& ans) {\n        if (path.size() == 2 * n) {\n            ans.push_back(path);\n            return;\n        }\n        if (open < n) {                 // 还能放左括号\n            path.push_back('(');\n            dfs(n, open + 1, close, path, ans);\n            path.pop_back();\n        }\n        if (close < open) {             // 右括号数量不能超过左括号\n            path.push_back(')');\n            dfs(n, open, close + 1, path, ans);\n            path.pop_back();\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-79",
+      "title": "79. 单词搜索",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：网格 DFS+回溯恢复现场\n\n【思路】从每个格子尝试作为起点，DFS 匹配单词：若 board[i][j] 等于 word[k]，则向四邻继续匹配 k+1，k 走到最后一位即成功。由于同一格不能在同一条路径中重复使用，进入格子前先把它临时改成 '#' 占位（做选择），四邻递归回来后再还原成原字符（撤销）。这是\"恢复现场\"在网格上的典型形态——标记不独立成数组，而是直接改写棋盘，省空间且写法短。\n\n【复杂度】时间 O(m·n·3^L)，m·n 个起点，每步至多 3 个新方向（不走回头路），L 为单词长度；空间 O(L)，递归深度（若不修改输入，另需 O(L) 的 visited 标记）。\n\n【要点】\n- 判断顺序固定：先越界与字符不匹配，再判 k 到头，最后才占位——顺序错了会在越界处写内存。\n- 还原时写 board[i][j] = word[k] 与原值必然一致（进入时已校验相等），比固定占位符更稳。\n- 任一起点成功立即返回 true，短路后续搜索。",
+      "code": "class Solution {\npublic:\n    bool exist(vector<vector<char>>& board, string word) {\n        for (int i = 0; i < board.size(); ++i)\n            for (int j = 0; j < board[0].size(); ++j)\n                if (dfs(board, word, i, j, 0)) return true;\n        return false;\n    }\nprivate:\n    bool dfs(vector<vector<char>>& board, const string& word, int i, int j, int k) {\n        if (i < 0 || i >= board.size() || j < 0 || j >= board[0].size() || board[i][j] != word[k])\n            return false;\n        if (k == word.size() - 1) return true;   // 最后一位也匹配\n        board[i][j] = '#';                       // 选择：占位，防同路径重复使用\n        bool found = dfs(board, word, i + 1, j, k + 1) ||\n                     dfs(board, word, i - 1, j, k + 1) ||\n                     dfs(board, word, i, j + 1, k + 1) ||\n                     dfs(board, word, i, j - 1, k + 1);\n        board[i][j] = word[k];                   // 撤销：恢复现场\n        return found;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-131",
+      "title": "131. 分割回文串",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：分割型回溯 + 预处理回文表\n\n【思路】把字符串切若干刀、每段都是回文——这是\"分割型回溯\"：start 表示\"从这里开始切下一段\"，枚举每段的终点 end，若 s[start..end] 是回文就切下来入 path，并从 end+1 继续切；start 走到串尾说明切法完整，收集答案。回文判断若每次都双指针扫一遍，每次查询要多花 O(n)；先用 DP 预处理出 isPal[i][j]（递推：两端相等且内部是回文），之后每次查询 O(1)，是典型的空间换时间。\n\n【复杂度】时间 O(n·2^n)，最坏（如全同字符）有 2^(n-1) 种切法、每种复制 O(n)，回文表预处理 O(n²)；空间 O(n²) 回文表加 O(n) 递归与 path（不计输出）。\n\n【要点】\n- 回文表递推顺序：i 从大到小、j 从小到大，保证算 isPal[i][j] 时 isPal[i+1][j-1] 已就绪。\n- j - i < 2 覆盖长度 1 和 2 的边界（内部区间为空或单字符）。\n- 不预处理也能过（每次双指针 O(n) 判回文），预处理只是把查询降到 O(1)。",
+      "code": "class Solution {\npublic:\n    vector<vector<string>> partition(string s) {\n        int n = s.size();\n        vector<vector<bool>> isPal(n, vector<bool>(n, false));  // isPal[i][j]: s[i..j] 是否回文\n        for (int i = n - 1; i >= 0; --i)\n            for (int j = i; j < n; ++j)\n                isPal[i][j] = s[i] == s[j] && (j - i < 2 || isPal[i + 1][j - 1]);\n        vector<vector<string>> ans;\n        vector<string> path;\n        dfs(s, 0, isPal, path, ans);\n        return ans;\n    }\nprivate:\n    void dfs(const string& s, int start, vector<vector<bool>>& isPal,\n             vector<string>& path, vector<vector<string>>& ans) {\n        if (start == s.size()) {\n            ans.push_back(path);\n            return;\n        }\n        for (int end = start; end < s.size(); ++end) {\n            if (!isPal[start][end]) continue;    // 前缀不是回文，剪掉\n            path.push_back(s.substr(start, end - start + 1));  // 选择：切出一段\n            dfs(s, end + 1, isPal, path, ans);   // 下一段从 end+1 开始\n            path.pop_back();                     // 撤销\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-51",
+      "title": "51. N 皇后",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "回溯"
+      ],
+      "lang": "cpp",
+      "body": "考点：按行放置，列/对角线标记\n\n【思路】逐行放置是本题的关键简化——每行必有且仅有一个皇后，所以只按行递归，每层枚举该行放在哪一列。冲突检测抽象成三个标记数组：col[c] 表示该列被占；同一条 \"/\" 方向对角线上 row+c 为定值，\"\\\" 方向上 row-c 为定值，分别用 row+c 与 row-c+n-1（平移成非负下标）编号。三处都未被占才可放置，放完打标记递归下一行，回来撤销标记。row 走到 n 即得一解，此时棋盘本身就是答案要求的格式。\n\n【复杂度】时间 O(n!)，剪枝后每行可用列数递减，最坏仍是 n! 级别；空间 O(n)，递归深度与三个标记数组（不计输出）。\n\n【要点】\n- 三个 O(1) 标记数组替代每次 O(n) 的冲突扫描，是从\"能过\"到\"优雅\"的关键。\n- 对角线编号口诀：row+c 与 row-c 各对应一个方向；负下标用 +n-1 平移。\n- 无需显式检查同列上下方——按行放置天然保证每行只有一个皇后。",
+      "code": "class Solution {\npublic:\n    vector<vector<string>> solveNQueens(int n) {\n        vector<vector<string>> ans;\n        vector<string> board(n, string(n, '.'));\n        vector<bool> col(n, false), diag1(2 * n - 1, false), diag2(2 * n - 1, false);\n        dfs(board, 0, col, diag1, diag2, ans);\n        return ans;\n    }\nprivate:\n    void dfs(vector<string>& board, int row, vector<bool>& col, vector<bool>& diag1,\n             vector<bool>& diag2, vector<vector<string>>& ans) {\n        int n = board.size();\n        if (row == n) {\n            ans.push_back(board);           // 棋盘即答案格式，直接收集\n            return;\n        }\n        for (int c = 0; c < n; ++c) {\n            int d1 = row + c;               // \"/\" 方向对角线编号\n            int d2 = row - c + n - 1;       // \"\\\" 方向，+n-1 平移防负下标\n            if (col[c] || diag1[d1] || diag2[d2]) continue;\n            board[row][c] = 'Q';            // 选择\n            col[c] = diag1[d1] = diag2[d2] = true;\n            dfs(board, row + 1, col, diag1, diag2, ans);\n            col[c] = diag1[d1] = diag2[d2] = false;  // 撤销：恢复现场\n            board[row][c] = '.';\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-35",
+      "title": "35. 搜索插入位置",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：找第一个 >= target 的位置\n\n【思路】\"按顺序插入的位置\"恰好等于第一个大于等于 target 的元素下标（即 lower_bound）。关键观察：若所有元素都小于 target，答案是数组长度 n，因此用左闭右开区间 [l, r)，初始 r = n，天然覆盖这一情况。每轮看 mid：nums[mid] < target 说明答案必在 mid 右侧，令 l = mid + 1；否则 mid 可能就是答案，令 r = mid 保留。循环结束时 l == r，即为插入位置。\n\n【复杂度】时间 O(log n)——每轮循环搜索区间减半；空间 O(1)——只使用两个指针。\n\n【要点】\n- 这就是 C++ lower_bound 的行为；\"找边界\"类二分固定用这一套模板（l < r、r = mid、返回 l），比左闭右闭写法更少踩边界坑。\n- 答案为 n（插到末尾）不需要特判，初始 r = n 已经覆盖。\n- mid 用 l + (r - l) / 2 而非 (l + r) / 2，防止两数相加溢出。",
+      "code": "class Solution {\npublic:\n    int searchInsert(vector<int>& nums, int target) {\n        int l = 0, r = nums.size();              // 左闭右开 [l, r)\n        while (l < r) {\n            int mid = l + (r - l) / 2;           // 防止 l+r 溢出\n            if (nums[mid] < target) l = mid + 1; // 答案在 (mid, r) 中\n            else r = mid;                        // mid 可能是答案，不能丢\n        }\n        return l;                                // 第一个 >= target 的下标\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-74",
+      "title": "74. 搜索二维矩阵",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：二维拍平成一维二分\n\n【思路】矩阵每行从左到右递增，且每行第一个数大于上一行最后一个数——把各行首尾相接\"拍平\"后，是一个长度为 m*n 的严格递增一维数组。于是直接对 [0, m*n - 1] 做标准二分，把一维下标 mid 还原成二维坐标 (mid / n, mid % n) 取值比较即可。注意对比 240 题（搜索二维矩阵 II）：那里只有行列各自有序、拍平后不整体递增，不能这样二分，只能从右上角走 O(m + n)。\n\n【复杂度】时间 O(log(mn))——对 m*n 个元素标准二分；空间 O(1)——只记录下标。\n\n【要点】\n- 拍平映射 mid → (mid / n, mid % n) 是二维二分的通用技巧，行优先存储下任何一维下标都能这样还原。\n- 能否拍平取决于\"下一行行首 > 上一行行尾\"这一整体有序性；只有行列各自有序时（240 题）不成立。\n- 这里用的是左闭右闭写法（判断\"是否存在\"更顺手），与 35 题的左闭右开只是风格差异，自洽即可。",
+      "code": "class Solution {\npublic:\n    bool searchMatrix(vector<vector<int>>& matrix, int target) {\n        int m = matrix.size(), n = matrix[0].size();\n        int l = 0, r = m * n - 1;                // 闭区间 [l, r]\n        while (l <= r) {\n            int mid = l + (r - l) / 2;\n            int val = matrix[mid / n][mid % n];  // 一维下标还原成二维坐标\n            if (val == target) return true;\n            else if (val < target) l = mid + 1;\n            else r = mid - 1;\n        }\n        return false;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-34",
+      "title": "34. 在排序数组中查找元素的第一个和最后一个位置",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：左右边界二分\n\n【思路】左边界就是 lower_bound：第一个 >= target 的下标；右边界是\"第一个 > target 的下标再减一\"，两者只差比较条件里的一个等号。先求左边界：若它越界（等于 n）或指向的值不是 target，说明 target 不存在，直接返回 {-1, -1}；否则再求 upper_bound 得到右边界。把两个只有一处不同的二分写成两个小函数，比记忆一套\"万能模板\"更不易错。\n\n【复杂度】时间 O(log n)——两次独立二分；空间 O(1)——只用指针。\n\n【要点】\n- lower_bound 与 upper_bound 只差一个等号（< 变 <=），掌握这一对就能覆盖所有\"第一个 / 最后一个\"类问题。\n- 顺序不能反：必须先用 lowerBound 确认 target 存在，否则 target 不存在时 upperBound - 1 会指向错误位置。\n- 等价库函数是 lower_bound / upper_bound，面试建议能手写版本，库函数作为校验。",
+      "code": "class Solution {\npublic:\n    vector<int> searchRange(vector<int>& nums, int target) {\n        int first = lowerBound(nums, target);\n        if (first == (int)nums.size() || nums[first] != target) return {-1, -1};\n        int last = upperBound(nums, target) - 1; // 第一个 > target 的位置再退一格\n        return {first, last};\n    }\nprivate:\n    // 第一个 >= x 的下标（不存在则为 n）\n    int lowerBound(vector<int>& nums, int x) {\n        int l = 0, r = nums.size();\n        while (l < r) {\n            int mid = l + (r - l) / 2;\n            if (nums[mid] < x) l = mid + 1;\n            else r = mid;\n        }\n        return l;\n    }\n    // 第一个 > x 的下标（不存在则为 n）\n    int upperBound(vector<int>& nums, int x) {\n        int l = 0, r = nums.size();\n        while (l < r) {\n            int mid = l + (r - l) / 2;\n            if (nums[mid] <= x) l = mid + 1;     // 与 lowerBound 唯一区别：多带等号\n            else r = mid;\n        }\n        return l;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-33",
+      "title": "33. 搜索旋转排序数组",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：判断哪半段有序\n\n【思路】旋转数组由两段各自递增的子串拼成，只有一个\"拐点\"。任取 mid，[l, mid] 与 [mid, r] 中必有一段完全有序：用 nums[l] <= nums[mid] 判断左半段是否有序（等号覆盖 l == mid 的情形）。若左半段有序且 target 落在 [nums[l], nums[mid]) 内，就收缩到左半段，否则去右半段；右半段有序时对称处理。每轮都能确定 target 在哪一半并排除另一半，维持 O(log n)。\n\n【复杂度】时间 O(log n)——每轮排除一半；空间 O(1)——双指针。\n\n【要点】\n- nums[l] <= nums[mid] 的等号不能省：区间缩到 1~2 个元素时 l == mid，漏掉等号会误判成\"右半段有序\"。\n- 判断 target 落点用左闭右开（nums[l] <= target < nums[mid]），不含 nums[mid]，因为相等已在循环开头返回。\n- 本题依赖\"元素互不相同\"；81 题允许重复时，nums[l] == nums[mid] == nums[r] 无法定向，只能 l++ / r-- 退化到 O(n)。",
+      "code": "class Solution {\npublic:\n    int search(vector<int>& nums, int target) {\n        int l = 0, r = nums.size() - 1;\n        while (l <= r) {\n            int mid = l + (r - l) / 2;\n            if (nums[mid] == target) return mid;\n            if (nums[l] <= nums[mid]) {                          // 左半段 [l, mid] 有序\n                if (nums[l] <= target && target < nums[mid]) r = mid - 1;\n                else l = mid + 1;\n            } else {                                             // 右半段 [mid, r] 有序\n                if (nums[mid] < target && target <= nums[r]) l = mid + 1;\n                else r = mid - 1;\n            }\n        }\n        return -1;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-153",
+      "title": "153. 寻找旋转排序数组中的最小值",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：与右端点比较\n\n【思路】最小值就是那个\"拐点\"。将 mid 与右端点 nums[r] 比较：若 nums[mid] > nums[r]，说明 [mid, r] 中间存在断崖，最小值必在 mid 右侧，令 l = mid + 1；若 nums[mid] < nums[r]，则 [mid, r] 整体有序，最小值不在 mid 的右边，mid 自己可能是答案，令 r = mid（不能是 mid - 1）。收缩到 l == r 时即为最小值。之所以和右端点而不是左端点比，是因为与 nums[l] 比较无法区分\"最小值在 mid 左侧\"和\"mid 及其右侧整体有序\"这两种情形。\n\n【复杂度】时间 O(log n)——每轮区间减半；空间 O(1)——双指针。\n\n【要点】\n- 必须与 nums[r] 比较：与 nums[l] 比较时，[1,2,3] 这类未旋转数组会误判方向。\n- 命中\"右半有序\"时是 r = mid 而不是 mid - 1，因为 mid 可能正是最小值。\n- 154 题（元素可重复）中 nums[mid] == nums[r] 无法定向，需 r-- 逐步缩小，最坏退化到 O(n)。",
+      "code": "class Solution {\npublic:\n    int findMin(vector<int>& nums) {\n        int l = 0, r = nums.size() - 1;\n        while (l < r) {\n            int mid = l + (r - l) / 2;           // mid < r 恒成立，r = mid 不会死循环\n            if (nums[mid] > nums[r]) l = mid + 1; // 拐点在右侧，mid 可排除\n            else r = mid;                         // [mid, r] 有序，mid 可能是答案\n        }\n        return nums[l];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-4",
+      "title": "4. 寻找两个正序数组的中位数",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "二分查找"
+      ],
+      "lang": "cpp",
+      "body": "考点：短数组上二分分割线\n\n【思路】中位数的本质是把全部元素划成个数相等的左右两半，且左半的最大值不超过右半的最小值。若左半固定放 (m+n+1)/2 个数，只需决定其中 i 个来自 nums1、其余 j = (m+n+1)/2 - i 个来自 nums2，这条\"分割线\"合法当且仅当 nums1[i-1] <= nums2[j] 且 nums2[j-1] <= nums1[i]。i 越大，第一个条件越难满足、第二个越容易满足，具有单调性，于是在 [0, m] 上对 i 二分，找满足条件的最大 i（此时另一个条件自动成立）。先交换保证 nums1 更短，既把复杂度压到 O(log min(m,n))，也保证 j 不越界；分割线顶到数组边缘时用 INT_MIN / INT_MAX 哨兵，免去四类边界特判。\n\n【复杂度】时间 O(log min(m, n))——只在较短数组上二分；空间 O(1)——只存常数个变量（交换用一次递归，深度为 1）。\n\n【要点】\n- 先在短数组上二分是正确性前提：若在长数组上二分，j = leftCnt - i 可能为负导致越界。\n- 循环取右中位 i = l + (r - l + 1) / 2 并令 l = i；若取下中位，区间剩两个元素时 l 不再前进，会死循环。\n- 只检查 nums1[i-1] <= nums2[j] 一个条件即可：对\"满足条件的最大 i\"，nums2[j-1] <= nums1[i] 自动成立（否则 i+1 也满足，矛盾）。",
+      "code": "class Solution {\npublic:\n    double findMedianSortedArrays(vector<int>& nums1, vector<int>& nums2) {\n        if (nums1.size() > nums2.size()) return findMedianSortedArrays(nums2, nums1);\n        int m = nums1.size(), n = nums2.size();\n        int leftCnt = (m + n + 1) / 2;              // 分割线左侧应有的元素个数\n        // 在 [0, m] 中找最大的 i 满足 nums1[i-1] <= nums2[j]，其中 j = leftCnt - i\n        int l = 0, r = m;\n        while (l < r) {\n            int i = l + (r - l + 1) / 2;            // 取右中位，配合 l = i 防死循环\n            int j = leftCnt - i;\n            if (nums1[i - 1] <= nums2[j]) l = i;    // 分割线可右移\n            else r = i - 1;\n        }\n        int i = l, j = leftCnt - i;\n        int L1 = (i == 0) ? INT_MIN : nums1[i - 1]; // 左半各侧最大值，越界用 -inf\n        int L2 = (j == 0) ? INT_MIN : nums2[j - 1];\n        int R1 = (i == m) ? INT_MAX : nums1[i];     // 右半各侧最小值，越界用 +inf\n        int R2 = (j == n) ? INT_MAX : nums2[j];\n        if ((m + n) % 2 == 1) return max(L1, L2);\n        return (max(L1, L2) + min(R1, R2)) / 2.0;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-20",
+      "title": "20. 有效的括号",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：栈匹配\n\n【思路】括号匹配满足\"最晚出现的未匹配左括号被最先闭合\"，正是栈的 LIFO 语义。一个小技巧：遇到左括号时把\"期望出现的右括号\"压栈，这样遇到右括号时只需判断栈顶是否与它相同，不用建映射表。任何时刻右括号到来而栈空或栈顶不匹配即非法；扫描结束后栈还必须为空，否则存在未闭合的左括号。\n\n【复杂度】时间 O(n)——每个字符入栈出栈至多一次；空间 O(n)——最坏全部是左括号。\n\n【要点】\n- 遇右括号必须先判栈空再取 top，对空栈取顶是未定义行为。\n- 返回值是 st.empty() 而不是\"没提前 return\"，\"(((\" 这类输入靠这一步拦下。\n- 压\"期望右括号\"的写法省去\"右括号 → 左括号\"的映射表，是本题最简洁的模板。",
+      "code": "class Solution {\npublic:\n    bool isValid(string s) {\n        if (s.size() % 2) return false;  // 奇数长度必不匹配，提前剪枝\n        stack<char> st;                  // 存\"期望出现的右括号\"\n        for (char c : s) {\n            if (c == '(') st.push(')');\n            else if (c == '[') st.push(']');\n            else if (c == '{') st.push('}');\n            else if (st.empty() || st.top() != c) return false; // 栈空或不匹配\n            else st.pop();\n        }\n        return st.empty();               // 有剩余则存在未闭合的左括号\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-155",
+      "title": "155. 最小栈",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：辅助栈同步最小值\n\n【思路】单栈要 O(1) 拿最小值，必须让\"每个栈状态\"都对应可查的最小值，于是加一个辅助栈 mn 与主栈同步 push/pop。mn 每次压入 min(val, mn 当前栈顶)，使 mn.top() 永远等于主栈当前所有元素的最小值；pop 时两栈同步弹出，getMin 直接读 mn.top()。辅助栈与主栈始终等长，天然解决了最小值被弹出后\"回退到次小值\"的问题。\n\n【复杂度】时间 push/pop/top/getMin 均 O(1)——都是常数次栈操作；空间 O(n)——辅助栈与主栈等长。\n\n【要点】\n- \"每次都压 min\" 的同步写法最不容易错；若只在 val 变小时才压入辅助栈，pop 时必须比较 st.top() == mn.top() 决定是否同步弹出。\n- 相等的最小值（如连续压入多个 -3）在同步写法下无需任何特判。\n- 进阶：用一个栈存 val 与当前最小值的差值可做到 O(1) 额外空间，面试可作为追问的延伸。",
+      "code": "class MinStack {\n    stack<int> st;   // 主栈\n    stack<int> mn;   // mn.top() = 主栈当前所有元素的最小值\npublic:\n    MinStack() {}\n\n    void push(int val) {\n        st.push(val);\n        mn.push(mn.empty() ? val : min(val, mn.top())); // 同步维护最小值\n    }\n\n    void pop() {\n        st.pop();\n        mn.pop();        // 同步弹出，自动\"回退\"到次小值\n    }\n\n    int top() { return st.top(); }\n\n    int getMin() { return mn.top(); }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-394",
+      "title": "394. 字符串解码",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：双栈（数字栈+字符串栈）\n\n【思路】遇到 '[' 要暂停外层、进入内层，遇到 ']' 要由内向外还原——嵌套结构天然用栈。维护两个栈：数字栈存倍数，字符串栈存\"进入本层之前外层已累积的串\"。扫描时：数字字符累积成多位数；遇 '[' 把数字与当前串压栈并清空当前层；遇 ']' 弹出倍数 k 与外层串 prev，把当前串重复 k 次接到 prev 后作为新的当前串；普通字母直接追加。每层嵌套恰好一对出入栈，由内向外逐层还原。\n\n【复杂度】时间 O(N)——N 为解码后字符串长度，重复拼接的总代价与输出同阶（嵌套倍数使输出可远大于输入，任何算法都无法低于输出规模）；空间 O(N)——栈与结果串最深可达输出规模。\n\n【要点】\n- 倍数可能不止一位（如 \"12[a]\"），必须用 num = num * 10 + ... 累积，不能按单字符转 int。\n- ']' 的处理顺序：先拼 k 份当前串，再与弹出的外层串拼接，方向搞反会得到错误的嵌套结果。\n- 递归写法（遇 '[' 递归进入、遇 ']' 返回）与双栈等价，本质都是\"由内向外逐层还原\"。",
+      "code": "class Solution {\npublic:\n    string decodeString(string s) {\n        stack<int> numSt;     // 倍数栈\n        stack<string> strSt;  // 保存各层\"进入内层前\"的外层串\n        string cur;           // 当前层已解码的串\n        int num = 0;\n        for (char c : s) {\n            if (isdigit(c)) {\n                num = num * 10 + (c - '0');   // 倍数可能是多位数\n            } else if (c == '[') {\n                numSt.push(num); num = 0;     // 保存倍数，进入新层\n                strSt.push(cur); cur = \"\";    // 保存外层串，另起当前层\n            } else if (c == ']') {\n                int k = numSt.top(); numSt.pop();\n                string tmp;\n                for (int t = 0; t < k; t++) tmp += cur; // 当前层重复 k 次\n                cur = strSt.top() + tmp; strSt.pop();   // 接回外层串\n            } else {\n                cur += c;                     // 普通字母直接累积\n            }\n        }\n        return cur;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-739",
+      "title": "739. 每日温度",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：单调递减栈存下标\n\n【思路】本题是\"对每个元素求右侧第一个更大元素\"，这是单调栈的标准信号。栈中保存下标，栈内对应温度自底向顶递减：新元素 i 到来时，把所有温度低于 temperatures[i] 的栈顶依次弹出——i 正是它们的答案，记录距离 i - j；弹完后把 i 入栈。换个视角：暂时没找到答案的元素先\"挂起\"在栈里，直到更大的元素出现才结算。每个下标至多入栈、出栈各一次，整体 O(n)，优于对每个位置向右扫描的 O(n^2)。\n\n【复杂度】时间 O(n)——每个下标至多进出栈各一次；空间 O(n)——最坏温度单调递减，全部下标留在栈内。\n\n【要点】\n- 栈里存下标而不是温度值，否则无法计算相隔天数。\n- 弹出条件必须严格大于，温度相等不能结算。\n- \"右侧第一个更大/更小\"两个方向 × 递增/递减栈共四种组合，建议以本题为准固定一套写法，84 题是其变形。",
+      "code": "class Solution {\npublic:\n    vector<int> dailyTemperatures(vector<int>& temperatures) {\n        int n = temperatures.size();\n        vector<int> ans(n, 0);            // 默认 0：右侧没有更大温度\n        stack<int> st;                    // 单调递减栈，存下标\n        for (int i = 0; i < n; i++) {\n            while (!st.empty() && temperatures[i] > temperatures[st.top()]) {\n                int j = st.top(); st.pop();\n                ans[j] = i - j;           // i 是 j 右侧第一个更大元素\n            }\n            st.push(i);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-84",
+      "title": "84. 柱状图中最大的矩形",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：单调递增栈+哨兵\n\n【思路】以第 j 根柱子的高度为矩形高时，最大宽度由左右两侧\"第一个更矮的柱子\"决定，朴素做法对每根柱子两侧扫描是 O(n^2)。改用单调递增栈：当前柱子比栈顶矮时，栈顶柱子的右边界就是 i，弹出它之后新的栈顶就是它的左边界，宽度 = i - st.top() - 1（左右边界都不含），立刻结算面积。为了让所有柱子都被结算并免去左边界特判，加两个哨兵：栈底压入下标 -1 作左边界，遍历到 i = n 时视为一根高度 0 的柱子，把栈内剩余元素全部弹出。一趟遍历完成。\n\n【复杂度】时间 O(n)——每根柱子至多入栈出栈各一次；空间 O(n)——单调栈最坏存全部下标。\n\n【要点】\n- 宽度公式 i - st.top() - 1 中的 st.top() 必须是弹出后的新栈顶（左边界），先弹出再取。\n- 弹出条件用 >= 或 > 都正确：等高柱子中最后一根会在更矮元素到来时以完整宽度结算，固定一种写法即可。\n- 双哨兵（栈底 -1 + 末尾高度 0）是单调栈的通用收尾技巧，避免遍历结束后再写一段\"清算剩余栈\"的循环。",
+      "code": "class Solution {\npublic:\n    int largestRectangleArea(vector<int>& heights) {\n        int n = heights.size();\n        stack<int> st;                    // 单调递增栈，存下标\n        st.push(-1);                      // 左边界哨兵\n        int ans = 0;\n        for (int i = 0; i <= n; i++) {\n            int h = (i == n) ? 0 : heights[i]; // 末尾高度 0 哨兵，逼清栈内元素\n            while (st.top() != -1 && heights[st.top()] >= h) {\n                int height = heights[st.top()]; st.pop();\n                int width = i - st.top() - 1;  // 左右开区间内的柱子数\n                ans = max(ans, height * width);\n            }\n            st.push(i);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-215",
+      "title": "215. 数组中的第K个最大元素",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：小顶堆维护 K 个 / 快速选择\n\n【思路】求第 K 大不需要全排序，只需动态维护\"当前最大的 K 个数\"：用大小为 K 的小顶堆，堆顶就是这 K 个数中最小的。遍历数组：堆未满直接入堆；堆满后只有大于堆顶的元素才有资格入选，弹出堆顶再入堆。扫描结束时堆里恰好是最大的 K 个数，堆顶即第 K 大。数据流场景下该做法同样适用，这是 top-K 问题的通用模板。\n\n【复杂度】时间 O(n log k)——每个元素至多一次 O(log k) 的堆操作；空间 O(k)——堆中只保留 K 个元素。\n\n【要点】\n- 必须用小顶堆：大顶堆要装下全部 n 个元素，空间 O(n)，也没有\"淘汰弱者\"的效果。\n- 进阶——快速选择：每次 partition 后根据基准落点与第 K 大位置的相对关系只递归一侧，平均 O(n)、最坏 O(n^2)，随机选基准基本可避免退化；C++ 可直接用 nth_element。\n- 堆解法在静态数组、数据流、多路归并三类 top-K 场景中最通用，面试可先讲堆再补充快速选择作对比。",
+      "code": "class Solution {\npublic:\n    int findKthLargest(vector<int>& nums, int k) {\n        priority_queue<int, vector<int>, greater<int>> pq; // 小顶堆\n        for (int x : nums) {\n            if ((int)pq.size() < k) {\n                pq.push(x);                 // 堆未满，直接入堆\n            } else if (x > pq.top()) {\n                pq.pop(); pq.push(x);       // 比堆顶大才值得替换\n            }\n        }\n        return pq.top();                    // K 个最大值中最小的那个\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-347",
+      "title": "347. 前 K 个高频元素",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：哈希计数+小顶堆 或 桶排序\n\n【思路】先用哈希表统计每个数出现的频次，问题转化为\"按频次取前 K\"。维护按频次比较的小顶堆（存 (频次, 元素) 二元组，大小不超过 K）：遍历每个候选，堆满且频次高于堆顶时替换堆顶。这样每个候选至多一次 O(log k) 堆操作，最终堆内就是频次最高的 K 个。另一条 O(n) 路线是桶排序：频次上限为 n，把元素按频次放进 n+1 个桶，从高频桶向低频桶收集直到凑够 K 个。\n\n【复杂度】时间 O(n log k)——统计 O(n)，每个不同元素至多一次 O(log k) 堆操作；空间 O(n)——哈希表存全部不同元素（堆本身只占 O(k)）。\n\n【要点】\n- 堆中存 pair 且频次放第一位，greater 比较后堆顶即最小频次；本题不要求输出顺序，出堆顺序无需处理（若需频次降序，出堆后 reverse）。\n- 哈希表遍历顺序不确定，不同次提交的合法答案顺序可能不同，属正常现象。\n- 桶排序版本可达 O(n)：vector<vector<int>> buckets(n + 1)，buckets[c].push_back(val)，从 buckets[n] 往回收集，代价是 O(n) 的桶空间。",
+      "code": "class Solution {\npublic:\n    vector<int> topKFrequent(vector<int>& nums, int k) {\n        unordered_map<int, int> cnt;\n        for (int x : nums) cnt[x]++;          // 哈希计数\n        // 小顶堆按 (频次, 元素) 比较，只保留频次最高的 K 个\n        priority_queue<pair<int, int>, vector<pair<int, int>>,\n                       greater<pair<int, int>>> pq;\n        for (auto& [val, c] : cnt) {          // C++17 结构化绑定\n            pq.push({c, val});\n            if ((int)pq.size() > k) pq.pop(); // 淘汰频次最小者\n        }\n        vector<int> ans;\n        while (!pq.empty()) { ans.push_back(pq.top().second); pq.pop(); }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-295",
+      "title": "295. 数据流的中位数",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "栈与堆"
+      ],
+      "lang": "cpp",
+      "body": "考点：对顶堆（大顶堆+小顶堆）\n\n【思路】中位数把数据分成\"较小一半\"与\"较大一半\"，分别用两个堆维护：大顶堆 left 存较小一半（堆顶是这半的最大值），小顶堆 right 存较大一半（堆顶是这半的最小值），并始终保持 left.size() 与 right.size() 相等或 left 多 1。新数到来时先按\"是否 <= left.top()\"决定进哪一半，再通过两堆互倒把大小差修正到允许范围。查询时：总数为奇数直接取 left.top()，偶数取两堆顶的平均。插入只涉及 O(log n) 的堆调整、查询 O(1)，契合数据流\"频繁插入、随时询问\"的场景。\n\n【复杂度】时间 addNum O(log n)——至多两次堆调整；findMedian O(1)——只读堆顶；空间 O(n)——两个堆合计保存全部元素。\n\n【要点】\n- 平衡约定必须与 findMedian 的奇偶分支一致：本题固定\"left 最多多 1\"，奇数个时中位数就是 left.top()。\n- 判断新数进哪半要在平衡调整之前做，且 left 为空时必须直接进 left，不能对空堆取 top。\n- 本题 |num| <= 1e5，两堆顶相加不会溢出；数据范围更大时应先转 double（或 long long）再求平均。",
+      "code": "class MedianFinder {\n    priority_queue<int> left;                             // 大顶堆：较小一半\n    priority_queue<int, vector<int>, greater<int>> right; // 小顶堆：较大一半\npublic:\n    MedianFinder() {}\n\n    void addNum(int num) {\n        if (left.empty() || num <= left.top()) left.push(num);\n        else right.push(num);\n        // 平衡：left 允许比 right 多 1，不允许反向失衡\n        if (left.size() > right.size() + 1) {\n            right.push(left.top()); left.pop();\n        } else if (right.size() > left.size()) {\n            left.push(right.top()); right.pop();\n        }\n    }\n\n    double findMedian() {\n        if (left.size() > right.size()) return left.top(); // 总数为奇数\n        return (left.top() + right.top()) / 2.0;           // 偶数取平均\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-121",
+      "title": "121. 买卖股票的最佳时机",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "贪心"
+      ],
+      "lang": "cpp",
+      "body": "考点：维护历史最低价\n\n【思路】只能\"在某天买入、之后的某天卖出\"，所以遍历到第 i 天时，最优买入价就是前 i-1 天的历史最低价。于是只需一趟扫描：用 minPrice 维护历史最低价，用 prices[i] - minPrice 更新答案。这相当于对每个\"卖出日\"贪心地配对它之前\"最便宜的买入日\"。\n\n【复杂度】时间 O(n)，一次遍历；空间 O(1)，只用两个变量。\n\n【要点】\n- 先更新答案、再更新 minPrice（或反过来，同日买卖收益为 0），两种顺序都正确；不会漏掉\"先涨后跌\"的形态。\n- 本题是\"只交易一次\"的特例；若允许多次交易（122 题），贪心改为累加所有相邻正差价。",
+      "code": "class Solution {\npublic:\n    int maxProfit(vector<int>& prices) {\n        int minPrice = INT_MAX, ans = 0;\n        for (int p : prices) {\n            ans = max(ans, p - minPrice); // 在历史最低点买入、今天卖出\n            minPrice = min(minPrice, p);  // 维护历史最低价\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-55",
+      "title": "55. 跳跃游戏",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "贪心"
+      ],
+      "lang": "cpp",
+      "body": "考点：维护可达最远位置\n\n【思路】从左往右扫描，维护\"当前能到达的最远位置 far\"。只要下标 i ≤ far，位置 i 就可达，于是用 i + nums[i] 扩展 far；若 i 走到了 far 之外，说明中间出现了跨不过去的断点。一旦 far 覆盖到末尾即可提前返回 true，不用扫完。\n\n【复杂度】时间 O(n)，每个位置处理一次；空间 O(1)。\n\n【要点】\n- 核心判断是\"i > far 则 false\"：当前格子的可达性完全由之前的跳跃决定，无需回溯。\n- far 在扫描中单调不减，所以一趟线性扫描即可判定全程可达性。",
+      "code": "class Solution {\npublic:\n    bool canJump(vector<int>& nums) {\n        int far = 0; // 当前可达的最远下标\n        for (int i = 0; i < (int)nums.size(); ++i) {\n            if (i > far) return false; // 位置 i 不可达\n            far = max(far, i + nums[i]);\n            if (far >= (int)nums.size() - 1) return true; // 提前结束\n        }\n        return true;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-45",
+      "title": "45. 跳跃游戏 II",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "贪心"
+      ],
+      "lang": "cpp",
+      "body": "考点：层序/当前层边界贪心\n\n【思路】把跳跃想象成 BFS 分层：第 k 层是\"恰好跳 k 步能到达的位置集合\"。用 curEnd 记录当前层的右边界、far 记录扫到 i 为止能到的最远位置；当 i 走到 curEnd 时当前层走完，必须再跳一步，步数 +1 并把边界推进到 far。只需扫到 n-2：在终点处不必再起跳。\n\n【复杂度】时间 O(n)，一次贪心扫描（相当于隐式 BFS）；空间 O(1)。\n\n【要点】\n- 与 55 题同框架，区别在于要\"数层\"：curEnd 是当前层边界、far 是下一层边界，两层同时推进。\n- 题目保证必能到达终点，因此 i == curEnd 时必有 far > i，不会多算步数。",
+      "code": "class Solution {\npublic:\n    int jump(vector<int>& nums) {\n        int steps = 0, curEnd = 0, far = 0;\n        for (int i = 0; i < (int)nums.size() - 1; ++i) {\n            far = max(far, i + nums[i]); // 下一层能到的最远位置\n            if (i == curEnd) {           // 走完当前层，必须起跳进入下一层\n                ++steps;\n                curEnd = far;\n            }\n        }\n        return steps;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-763",
+      "title": "763. 划分字母区间",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "贪心"
+      ],
+      "lang": "cpp",
+      "body": "考点：记录每字母最后出现位置\n\n【思路】每个片段必须\"完整\"——某字母一旦出现，其最后一次出现必须落在同一段内。因此先记录每个字母最后出现的下标 last[c]，再从左往右扫：用 end = max(end, last[s[i]]) 不断延伸当前片段右边界；当 i 正好走到 end 时片段闭合，记录长度并从 i+1 开新段。\n\n【复杂度】时间 O(n)，两次线性扫描；空间 O(|Σ|) = O(26)。\n\n【要点】\n- end 取 max 是因为当前片段可能已含多个字母，它们各自的最后出现位置都要被覆盖。\n- \"扫到右边界就结算\"的套路与 45 题同构，本质都是区间合并型贪心。",
+      "code": "class Solution {\npublic:\n    vector<int> partitionLabels(string s) {\n        int last[26] = {0};\n        for (int i = 0; i < (int)s.size(); ++i)\n            last[s[i] - 'a'] = i;             // 每个字母最后出现的位置\n        vector<int> ans;\n        int start = 0, end = 0;\n        for (int i = 0; i < (int)s.size(); ++i) {\n            end = max(end, last[s[i] - 'a']); // 必须覆盖当前字母的最后出现\n            if (i == end) {                   // 当前片段闭合\n                ans.push_back(end - start + 1);\n                start = i + 1;\n            }\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-70",
+      "title": "70. 爬楼梯",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：滚动变量\n\n【思路】状态定义 dp[i]：爬到第 i 阶的方案数。最后一步要么跨 1 阶（来自 dp[i-1]），要么跨 2 阶（来自 dp[i-2]），故转移 dp[i] = dp[i-1] + dp[i-2]，即斐波那契数列；初始化 dp[0] = dp[1] = 1。由于只依赖前两项，用两个滚动变量代替数组即可。\n\n【复杂度】时间 O(n)，一次递推；空间 O(1)，只保留最近两个状态。\n\n【要点】\n- dp[0] = 1 表示\"站在地面\"这一空方案，是递推能正确启动的关键。\n- 该\"两个变量滚动\"是所有一维 DP 的通用空间优化模板。",
+      "code": "class Solution {\npublic:\n    int climbStairs(int n) {\n        int a = 1, b = 1; // f(0)=1, f(1)=1\n        for (int i = 2; i <= n; ++i) {\n            int c = a + b;\n            a = b; b = c;\n        }\n        return b;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-118",
+      "title": "118. 杨辉三角",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：按行递推\n\n【思路】按行递推：第 i 行第 j 个数（0 下标、0 < j < i）满足 tri[i][j] = tri[i-1][j-1] + tri[i-1][j]，每行首尾恒为 1。初始化时把整行置 1，只改中间部分；逐行生成、逐行加入答案。\n\n【复杂度】时间 O(n²)，等于总元素个数；空间 O(1)（不计返回的二维数组本身）。\n\n【要点】\n- 第 i 行恰有 i+1 个元素，先 assign(i+1, 1) 再填中间，可避免逐个判边界。\n- 递推只引用上一行，因此也可以只维护一行做滚动（本题需返回全部行，故直接全存）。",
+      "code": "class Solution {\npublic:\n    vector<vector<int>> generate(int numRows) {\n        vector<vector<int>> ans(numRows);\n        for (int i = 0; i < numRows; ++i) {\n            ans[i].assign(i + 1, 1); // 每行首尾都是 1\n            for (int j = 1; j < i; ++j)\n                ans[i][j] = ans[i - 1][j - 1] + ans[i - 1][j];\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-198",
+      "title": "198. 打家劫舍",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：选/不选，滚动数组\n\n【思路】状态定义 dp[i]：考虑前 i 间房屋能偷到的最大金额。对第 i 间\"不选\"则收益为 dp[i-1]；\"选\"则第 i-1 间必须不选，收益为 dp[i-2] + nums[i]。转移：dp[i] = max(dp[i-1], dp[i-2] + nums[i])。初始化 dp[0]=0、dp[1]=nums[0]；只依赖前两个状态，用两个滚动变量即可。\n\n【复杂度】时间 O(n)，一次扫描；空间 O(1)，滚动变量。\n\n【要点】\n- \"选/不选二选一取 max\"是线性 DP 最常见的转移形态，213 题（环形）是其变体。\n- 滚动时注意变量覆盖顺序：先算出新值再整体平移。",
+      "code": "class Solution {\npublic:\n    int rob(vector<int>& nums) {\n        int pre = 0, cur = 0; // dp[i-2], dp[i-1]\n        for (int x : nums) {\n            int t = max(cur, pre + x); // 不偷当前家 / 偷当前家\n            pre = cur; cur = t;\n        }\n        return cur;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-279",
+      "title": "279. 完全平方数",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：完全背包求最少件数\n\n【思路】完全背包模型。状态定义 dp[j]：凑出 j 所需的最少完全平方数个数，转移 dp[j] = min(dp[j], dp[j - i*i] + 1)，其中 i*i 取所有不超过 j 的平方数。初始化 dp[0] = 0、其余为无穷大。外层枚举平方数（物品）、内层容量正序——正序正是完全背包允许\"重复选同一物品\"的写法。\n\n【复杂度】时间 O(n·√n)，物品约 √n 个；空间 O(n)。\n\n【要点】\n- \"求最少件数\"的完全背包与 322 题完全同构，转移只差物品集合。\n- 由于 i=1 会让所有 dp[j] 变为有限值，dp[j - i*i] 不会停留在 INT_MAX，无需特判溢出。",
+      "code": "class Solution {\npublic:\n    int numSquares(int n) {\n        vector<int> dp(n + 1, INT_MAX);\n        dp[0] = 0;\n        for (int i = 1; i * i <= n; ++i)          // 物品：完全平方数\n            for (int j = i * i; j <= n; ++j)      // 容量正序：完全背包\n                dp[j] = min(dp[j], dp[j - i * i] + 1);\n        return dp[n];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-322",
+      "title": "322. 零钱兑换",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：完全背包求最少硬币\n\n【思路】与 279 题同为\"完全背包求最少件数\"。状态定义 dp[j]：凑出金额 j 的最少硬币数，转移 dp[j] = min(dp[j], dp[j - c] + 1)（c 为各面额），初始化 dp[0] = 0、其余置 INF。INF 用 amount + 1 这类\"不可能值\"表示，避免 INT_MAX + 1 溢出。最终 dp[amount] 仍为 INF 说明凑不出，返回 -1。\n\n【复杂度】时间 O(amount·m)，m 为硬币种数；空间 O(amount)。\n\n【要点】\n- 完全背包内层正序；若换成 0-1 背包（每种最多一枚）则必须倒序，这是两类背包的唯一顺序区别。\n- INF 取 amount + 1：任何合法解硬币数 ≤ amount，故用 dp[amount] > amount 判无解。",
+      "code": "class Solution {\npublic:\n    int coinChange(vector<int>& coins, int amount) {\n        const int INF = amount + 1; // 视作“不可达”，防止溢出\n        vector<int> dp(amount + 1, INF);\n        dp[0] = 0;\n        for (int c : coins)\n            for (int j = c; j <= amount; ++j) // 容量正序：每种硬币可重复用\n                dp[j] = min(dp[j], dp[j - c] + 1);\n        return dp[amount] > amount ? -1 : dp[amount];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-139",
+      "title": "139. 单词拆分",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：dp[i] 可达性 + 枚举分割点\n\n【思路】状态定义 dp[i]：前 i 个字符能否被字典拆分。枚举\"最后一个单词\"的起点 j，若 dp[j] 为真且 s[j..i) 在字典中，则 dp[i] 为真，即 dp[i] = OR_{0≤j<i} (dp[j] && s[j..i) ∈ dict)。初始化 dp[0] = true（空串可拆，是递推起点）。字典用哈希集合存储，使每次子串查询 O(1)。\n\n【复杂度】时间 O(n²·L)，L 为截取并哈希子串的开销；空间 O(n + 字典)。\n\n【要点】\n- dp[0] = true 是\"空串可达\"的哨兵初始化，漏掉则全盘为 false。\n- \"枚举分割点 j\"的框架也适用于回文划分、解码方法等一串多段问题。",
+      "code": "class Solution {\npublic:\n    bool wordBreak(string s, vector<string>& wordDict) {\n        int n = s.size();\n        vector<bool> dp(n + 1, false); // dp[i]: 前 i 个字符可拆分\n        dp[0] = true;\n        unordered_set<string> dict(wordDict.begin(), wordDict.end());\n        for (int i = 1; i <= n; ++i)\n            for (int j = 0; j < i && !dp[i]; ++j)\n                if (dp[j] && dict.count(s.substr(j, i - j)))\n                    dp[i] = true;\n        return dp[n];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-300",
+      "title": "300. 最长递增子序列",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：O(n²) 线性 DP 主解，要点提贪心+二分 O(n log n)\n\n【思路】状态定义 dp[i]：以 nums[i] 结尾的最长严格递增子序列长度。枚举每个 j < i，若 nums[j] < nums[i] 则可接在其后：dp[i] = max(dp[j]) + 1；否则 dp[i] 保持初值 1。答案是所有 dp[i] 的最大值——不是 dp[n-1]，因为最优子序列不一定以末尾结尾。\n\n【复杂度】时间 O(n²)，双重循环；空间 O(n)，dp 数组。\n\n【要点】\n- 进阶 O(n log n)：维护数组 tails（各长度 LIS 的最小结尾），对每个数在 tails 中 lower_bound 替换或追加，tails 长度即答案。\n- 状态定义改为\"以 i 结尾\"是 LIS 能用线性 DP 的前提；直接定义\"前 i 个的 LIS\"无法写出有效转移。",
+      "code": "class Solution {\npublic:\n    int lengthOfLIS(vector<int>& nums) {\n        int n = nums.size();\n        vector<int> dp(n, 1); // dp[i]: 以 nums[i] 结尾的 LIS 长度\n        int ans = 1;\n        for (int i = 1; i < n; ++i) {\n            for (int j = 0; j < i; ++j)\n                if (nums[j] < nums[i]) dp[i] = max(dp[i], dp[j] + 1);\n            ans = max(ans, dp[i]);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-152",
+      "title": "152. 乘积最大子数组",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：同时维护最大/最小（负数翻转）\n\n【思路】若没有负数，本题与 53 题最大子段和同解；但负数乘负数会翻正，\"当前最小\"乘上负数反而可能成为最大，因此必须同时维护两个状态：f[i]、g[i] 为以 nums[i] 结尾的最大/最小乘积。转移：f[i] = max(nums[i], f[i-1]*nums[i], g[i-1]*nums[i])，g[i] = min(...) 对称。初始化 f[0] = g[0] = nums[0]，答案为各 f[i] 的最大值。实现上常用\"遇负数先交换 mx、mn\"的技巧。\n\n【复杂度】时间 O(n)，一次扫描；空间 O(1)，只保留上一个位置的两个状态。\n\n【要点】\n- 与 53 题的关键差异：加法不会变号，乘法会，所以\"只维护最大值\"会漏掉负负得正的方案。\n- 转移必须包含 nums[i] 单独成段这一项（等价于遇到更优起点时\"重新开始\"）。",
+      "code": "class Solution {\npublic:\n    int maxProduct(vector<int>& nums) {\n        int ans = nums[0], mx = nums[0], mn = nums[0]; // 以当前元素结尾的最大/最小乘积\n        for (int i = 1; i < (int)nums.size(); ++i) {\n            int x = nums[i];\n            if (x < 0) swap(mx, mn); // 负数让最大、最小角色互换\n            mx = max(x, mx * x);\n            mn = min(x, mn * x);\n            ans = max(ans, mx);\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-416",
+      "title": "416. 分割等和子集",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：0-1 背包可达性，一维倒序\n\n【思路】问题等价于：能否选出若干数使其和恰为 sum/2（总和为奇数直接 false）。状态定义 dp[j]：用已扫过的数字能否凑出和 j，转移 dp[j] = dp[j] || dp[j - x]。初始化 dp[0] = true。这是一维 0-1 背包：容量 j 必须倒序遍历，保证每个数在一轮中只被使用一次。\n\n【复杂度】时间 O(n·target)，target = sum/2；空间 O(target)。\n\n【要点】\n- 一维 0-1 背包的顺序口诀：外层物品、内层容量倒序；正序就变成完全背包（可重复选）。\n- 可加提前退出 if (dp[target]) return true; 剪枝；布尔可达型背包用 vector<bool> 比 int 更省。",
+      "code": "class Solution {\npublic:\n    bool canPartition(vector<int>& nums) {\n        int sum = 0;\n        for (int x : nums) sum += x;\n        if (sum % 2) return false;   // 总和为奇数不可能平分\n        int target = sum / 2;\n        vector<bool> dp(target + 1, false); // dp[j]: 能否凑出和 j\n        dp[0] = true;\n        for (int x : nums)\n            for (int j = target; j >= x; --j) // 倒序：0-1 背包每件只用一次\n                dp[j] = dp[j] || dp[j - x];\n        return dp[target];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-32",
+      "title": "32. 最长有效括号",
+      "difficulty": "困难",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：栈存下标 或 DP\n\n【思路】用栈存下标，栈底压入哨兵 -1，表示\"最近一次无法匹配的位置\"。遇到 ( 压其下标；遇到 ) 先弹出栈顶尝试匹配：若栈被弹空，说明该右括号无对象可配，把 i 作为新哨兵压入；否则当前有效段从 st.top() 之后开始，长度为 i - st.top()，据此更新答案。这样栈顶始终是\"当前有效段的前一个位置\"。\n\n【复杂度】时间 O(n)，每个下标至多进出栈一次；空间 O(n)，栈最坏存满左括号。\n\n【要点】\n- 哨兵 -1 不可省：它让\"从串首开始的合法段\"（如 \"()(\"）也能算出长度 i - (-1)。\n- 也可用 DP：dp[i] 为以 i 结尾的最长有效长度，按 s[i]==')' 时前一位是 ( 还是 ) 分两类回跳转移；栈解更直观。## 多维（网格 / 双序列）DP",
+      "code": "class Solution {\npublic:\n    int longestValidParentheses(string s) {\n        stack<int> st; // 栈底哨兵：最近一个未匹配右括号的下标（初始 -1）\n        st.push(-1);\n        int ans = 0;\n        for (int i = 0; i < (int)s.size(); ++i) {\n            if (s[i] == '(') {\n                st.push(i);\n            } else {\n                st.pop();                          // 弹出尝试匹配\n                if (st.empty()) st.push(i);        // 配不上，i 成为新哨兵\n                else ans = max(ans, i - st.top()); // 有效段起点是 st.top() 之后\n            }\n        }\n        return ans;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-62",
+      "title": "62. 不同路径",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：组合数 或 二维 DP 滚动\n\n【思路】状态定义 dp[i][j]：到达 (i, j) 的路径数，转移 dp[i][j] = dp[i-1][j] + dp[i][j-1]；第一行、第一列初始化为 1（只有直走一条路）。由于只依赖上一行与本行左侧，可压成一维滚动：dp[j] += dp[j-1]（更新前 dp[j] 是上一行旧值、dp[j-1] 是本行新值）。另有组合数解法：共需 m-1 次下移、n-1 次右移，答案为 C(m+n-2, m-1)。\n\n【复杂度】时间 O(m·n)（组合数解法 O(min(m, n))）；空间 O(n)，一维滚动。\n\n【要点】\n- 滚动一维时，内层从左往右扫即可同时拿到\"上一行\"和\"本行左侧\"两个依赖。\n- 组合数解法注意用 long long 累乘/除避免溢出，或按 C(a, b) = C(a-1, b-1) + C(a-1, b) 递推。",
+      "code": "class Solution {\npublic:\n    int uniquePaths(int m, int n) {\n        vector<int> dp(n, 1); // 第一行全为 1\n        for (int i = 1; i < m; ++i)\n            for (int j = 1; j < n; ++j)\n                dp[j] += dp[j - 1]; // 上方旧值 + 左方新值\n        return dp[n - 1];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-64",
+      "title": "64. 最小路径和",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：网格 DP，原地或滚动\n\n【思路】状态定义 dp[i][j]：从 (0,0) 走到 (i,j) 的最小路径和，转移 dp[i][j] = grid[i][j] + min(dp[i-1][j], dp[i][j-1])。首行只能从左来、首列只能从上来，是边界初始化。依赖方向只有\"上、左\"，因此可直接在 grid 上原地修改，省去额外数组。\n\n【复杂度】时间 O(m·n)，每格计算一次；空间 O(1)（原地；不改原数组则为 O(n) 滚动）。\n\n【要点】\n- 网格 DP 的固定三步：首行/首列单独处理、内部取上左最值（最大或最小看题意）。\n- 若不允许修改输入，用一维滚动数组 dp[j] = min(dp[j], dp[j-1]) + grid[i][j] 同样简洁。",
+      "code": "class Solution {\npublic:\n    int minPathSum(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size();\n        for (int i = 0; i < m; ++i)\n            for (int j = 0; j < n; ++j) {\n                if (i == 0 && j == 0) continue;                    // 起点\n                else if (i == 0) grid[i][j] += grid[i][j - 1];     // 首行：只能来自左\n                else if (j == 0) grid[i][j] += grid[i - 1][j];     // 首列：只能来自上\n                else grid[i][j] += min(grid[i - 1][j], grid[i][j - 1]);\n            }\n        return grid[m - 1][n - 1];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-5",
+      "title": "5. 最长回文子串",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：区间 DP（或中心扩展法）\n\n【思路】状态定义 dp[i][j]：s[i..j] 是否为回文串。转移：当 s[i] == s[j] 且（区间长度 ≤ 3 或 dp[i+1][j-1] 为真）时 dp[i][j] = true——长度 ≤ 3 时内部无需再判。遍历顺序必须让 dp[i+1][j-1] 先于 dp[i][j] 算出：外层枚举右端点 j、内层枚举左端点 i（等价于按区间长度从小到大）。用起点和长度变量记录最优解，最后 substr。\n\n【复杂度】时间 O(n²)，双重循环填表；空间 O(n²)，dp 布尔表。\n\n【要点】\n- 区间 DP 的遍历顺序由依赖决定：\"大区间依赖小区间\"，按长度或按右端点枚举均可。\n- 更省空间的替代解法是中心扩展：枚举 2n-1 个中心向两侧扩，O(n²) 时间、O(1) 空间，面试常写。",
+      "code": "class Solution {\npublic:\n    string longestPalindrome(string s) {\n        int n = s.size();\n        vector<vector<bool>> dp(n, vector<bool>(n, false)); // dp[i][j]: s[i..j] 是否回文\n        int start = 0, len = 1;\n        for (int j = 0; j < n; ++j) {\n            dp[j][j] = true; // 单字符\n            for (int i = 0; i < j; ++i) {\n                if (s[i] != s[j]) continue;\n                if (j - i < 3 || dp[i + 1][j - 1]) dp[i][j] = true; // 长度≤3 或内部回文\n                if (dp[i][j] && j - i + 1 > len) { start = i; len = j - i + 1; }\n            }\n        }\n        return s.substr(start, len);\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-1143",
+      "title": "1143. 最长公共子序列",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：二维 DP 相等转移\n\n【思路】经典双序列 DP。状态定义 dp[i][j]：text1 前 i 个字符与 text2 前 j 个字符的 LCS 长度。末尾字符相等则 dp[i][j] = dp[i-1][j-1] + 1；不相等则丢掉其中一个末尾字符：dp[i][j] = max(dp[i-1][j], dp[i][j-1])。初始化 dp[0][*] = dp[*][0] = 0（空串与任何串的 LCS 为 0），下标整体右移一位用\"前缀长度\"做索引。\n\n【复杂度】时间 O(m·n)，填满二维表；空间 O(m·n)，可滚动优化到 O(min(m, n))。\n\n【要点】\n- \"下标 = 前缀长度、字符串访问要 -1\"是双序列 DP 的通用写法，可避免 0 下标特判。\n- 相等时不要同时考虑 max(dp[i-1][j], dp[i][j-1])——dp[i-1][j-1]+1 已包含更优情形，加了反而错（不是必需，但易写错）。",
+      "code": "class Solution {\npublic:\n    int longestCommonSubsequence(string text1, string text2) {\n        int m = text1.size(), n = text2.size();\n        vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0)); // dp[i][j]: 前缀长度 LCS\n        for (int i = 1; i <= m; ++i)\n            for (int j = 1; j <= n; ++j) {\n                if (text1[i - 1] == text2[j - 1])\n                    dp[i][j] = dp[i - 1][j - 1] + 1; // 末尾相等：共同取掉\n                else\n                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]); // 丢掉一个末尾\n            }\n        return dp[m][n];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-72",
+      "title": "72. 编辑距离",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "动态规划"
+      ],
+      "lang": "cpp",
+      "body": "考点：二维 DP 增删改\n\n【思路】状态定义 dp[i][j]：把 word1 前 i 个字符变成 word2 前 j 个字符的最少操作数。若 word1[i-1] == word2[j-1]，末尾字符无需处理：dp[i][j] = dp[i-1][j-1]；否则在\"替换 / 删除 / 插入\"三种操作中取最优再加 1：dp[i][j] = 1 + min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1])。边界：dp[i][0] = i（全删）、dp[0][j] = j（全插入）。\n\n【复杂度】时间 O(m·n)，填满二维表；空间 O(m·n)，可滚动优化到 O(n)。\n\n【要点】\n- 与 1143 题框架几乎一致，区别只在\"不相等时\"的转移：LCS 取 max 跳过，编辑距离取 min 加代价。\n- 三个转移项与三种操作的对应关系不必死记：从 dp[i-1][j] 转来一定是\"删 word1 一字符\"，从 dp[i][j-1] 转来一定是\"插一个字符\"。",
+      "code": "class Solution {\npublic:\n    int minDistance(string word1, string word2) {\n        int m = word1.size(), n = word2.size();\n        vector<vector<int>> dp(m + 1, vector<int>(n + 1));\n        for (int i = 0; i <= m; ++i) dp[i][0] = i; // 全部删除\n        for (int j = 0; j <= n; ++j) dp[0][j] = j; // 全部插入\n        for (int i = 1; i <= m; ++i)\n            for (int j = 1; j <= n; ++j) {\n                if (word1[i - 1] == word2[j - 1])\n                    dp[i][j] = dp[i - 1][j - 1]; // 末尾相等，无需操作\n                else\n                    dp[i][j] = min({dp[i - 1][j - 1], // 替换\n                                    dp[i - 1][j],     // 删除 word1 末尾\n                                    dp[i][j - 1]})    // 插入 word2 末尾\n                               + 1;\n            }\n        return dp[m][n];\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-136",
+      "title": "136. 只出现一次的数字",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "技巧"
+      ],
+      "lang": "cpp",
+      "body": "考点：异或性质\n\n【思路】其余数字都出现两次、只有一个出现一次，这是\"成对抵消\"的典型信号。异或满足交换律、结合律，且 a^a=0、a^0=a，于是把全部元素异或在一起：出现两次的数互相抵消为 0，最后剩下的就是只出现一次的那个数。相比哈希表计数，它不需要额外空间，一遍扫描即可完成。\n\n【复杂度】时间 O(n)（每个元素参与一次异或），空间 O(1)（只用一个累加变量）。\n\n【要点】\n- 异或三性质是\"成对抵消\"类题的通用套路：交换律、结合律、a^a=0；初始值取 0 是因为 a^0=a，无需特判首元素。\n- 同类扩展：若有恰两个只出现一次的数（LC 260），全体异或结果为 x^y ≠ 0，需按结果中任意一个为 1 的位把数组分成两组，各组内再异或。",
+      "code": "class Solution {\npublic:\n    int singleNumber(vector<int>& nums) {\n        int ans = 0;\n        for (int x : nums) ans ^= x;   // 成对的数异或抵消为 0\n        return ans;                    // 剩下的即只出现一次的数\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-169",
+      "title": "169. 多数元素",
+      "difficulty": "简单",
+      "tags": [
+        "Hot100",
+        "技巧"
+      ],
+      "lang": "cpp",
+      "body": "考点：Boyer-Moore 摩尔投票\n\n【思路】多数元素出现次数严格超过 n/2，意味着它比\"其余所有元素加起来\"还多。摩尔投票模拟两两对拼：维护候选人和票数，遇到相同元素票数 +1、不同元素票数 -1，票数归零就换当前元素当候选人。由于多数元素能与所有非多数元素对拼后仍有剩余，全部抵消结束后存活下来的候选人一定是多数元素——不用真的统计次数。\n\n【复杂度】时间 O(n)（一遍扫描），空间 O(1)（只记录候选人与计数）。\n\n【要点】\n- 摩尔投票的前提是\"题目保证多数元素存在\"（超过一半）；若不保证，最后还需再扫一遍统计候选人真实出现次数来验证。\n- 正确性可按\"任意把数组分段、每段内多数与非多数配对抵消、段间合并仍有余票\"来理解，抵消与出现顺序无关。",
+      "code": "class Solution {\npublic:\n    int majorityElement(vector<int>& nums) {\n        int candidate = 0, cnt = 0;\n        for (int x : nums) {\n            if (cnt == 0) candidate = x;      // 票数归零，换当前元素当候选人\n            cnt += (x == candidate) ? 1 : -1; // 相同 +1，不同 -1（两两抵消）\n        }\n        return candidate;                     // 出现次数 > n/2 的元素必然存活\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-75",
+      "title": "75. 颜色分类",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "技巧"
+      ],
+      "lang": "cpp",
+      "body": "考点：三指针（荷兰国旗）一次遍历\n\n【思路】要求原地一遍把 0/1/2 分成三段，这正是荷兰国旗问题。维护三个指针形成不变式：[0, low) 全是 0，[low, i) 全是 1，(high, n-1] 全是 2，[i, high] 是未检查区。nums[i]==0 换到左端并收缩左边，nums[i]==2 换到右端并收缩右边，nums[i]==1 留在原地即可。i 是否前进取决于换入元素的\"确定性\"：从左边换来的一定是已处理过的 1（或自身），可放心 ++i；从右边换来的是从未检查过的元素，必须留在 i 原地再判——这就是\"与 nums[high] 交换后 right 前移而 i 不动\"的原因。\n\n【复杂度】时间 O(n)（每轮循环 i 或 high 必有一个前进，一遍完成），空间 O(1)（三个下标）。\n\n【要点】\n- 循环条件是 i <= high 而非 i < n：high 右侧都是已就位的 2，i 越过 high 即处理完毕。\n- low == i 且 nums[i]==0 时是自己与自己交换，无副作用，不必特判。\n- 三路划分模板可推广：把\"等于 pivot\"放中间、\"小于\"放左、\"大于\"放右，是快排三路优化的核心写法。",
+      "code": "class Solution {\npublic:\n    void sortColors(vector<int>& nums) {\n        int low = 0, i = 0, high = nums.size() - 1;\n        while (i <= high) {\n            if (nums[i] == 0) {\n                swap(nums[i], nums[low]);   // 换来的是 1 或自身，可前进\n                ++low; ++i;\n            } else if (nums[i] == 2) {\n                swap(nums[i], nums[high]);  // 换来的元素未检查，i 原地再判\n                --high;\n            } else {\n                ++i;                        // 1 属于中段，留在原地\n            }\n        }\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-31",
+      "title": "31. 下一个排列",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "技巧"
+      ],
+      "lang": "cpp",
+      "body": "考点：从后找升序对→找替换→反转后缀\n\n【思路】下一个排列要\"恰好比当前大一点\"。从右往左观察：若尾部是一段降序后缀，它已是这段数字的最大排列，内部无法再变大；第一个破坏降序的位置 i（满足 nums[i] < nums[i+1]）才是唯一能增大的高位。让它大多少？在后缀（降序）中从右找第一个大于 nums[i] 的数交换——那正是\"大于 nums[i] 的最小数\"，保证增幅最小。交换后后缀依然降序，反转成升序即得后缀的最小排列。若整条数组都降序，说明当前已是最大排列，直接整体反转成最小排列。\n\n【复杂度】时间 O(n)（两次线性扫描加一次反转），空间 O(1)（原地交换与反转）。\n\n【要点】\n- 三步模板：①从右找升序对定 i（找不到则 i = -1，跳过②）；②从右找第一个 nums[j] > nums[i] 交换；③反转 i 之后的后缀。务必按此顺序。\n- ②从右往左找的原因：后缀降序，最右侧第一个大于 nums[i] 的就是后缀中\"大于 nums[i] 的最小值\"。\n- 交换不会破坏后缀的降序性（nums[j-1] ≥ nums[j] > nums[i] ≥ nums[j+1]），所以第③步只需反转、无需重新排序。",
+      "code": "class Solution {\npublic:\n    void nextPermutation(vector<int>& nums) {\n        int n = nums.size();\n        int i = n - 2;\n        while (i >= 0 && nums[i] >= nums[i + 1]) --i;   // ① 从右找第一个升序对 nums[i] < nums[i+1]\n        if (i >= 0) {\n            int j = n - 1;\n            while (nums[j] <= nums[i]) --j;             // ② 后缀降序，从右找第一个大于 nums[i] 的数\n            swap(nums[i], nums[j]);\n        }\n        reverse(nums.begin() + i + 1, nums.end());      // ③ 反转降序后缀 → 最小排列\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
+    },
+    {
+      "id": "hot100-287",
+      "title": "287. 寻找重复数",
+      "difficulty": "中等",
+      "tags": [
+        "Hot100",
+        "技巧"
+      ],
+      "lang": "cpp",
+      "body": "考点：Floyd 判圈（快慢指针）\n\n【思路】数组有 n+1 个元素、值域 [1, n]，必存在重复。把数组看成一个链表：下标 i 的\"下一个节点\"是 nums[i]，即 i → nums[i]。值域不含 0，说明下标 0 没有任何入边，是链表的起点；而重复数 v 意味着有多个下标同时指向 v，于是 v 恰好是这条链上环的入口。找重复数就转化为 Floyd 判圈找环入口：快指针一次走两步、慢指针一次走一步，两者相遇后把慢指针放回起点，再同速前进，再次相遇的位置就是环入口，也就是重复数。\n\n【复杂度】时间 O(n)（快慢指针相遇后再走一遍即可），空间 O(1)（只用两个下标）。\n\n【要点】\n- 题设约束决定了算法选择：\"不能修改数组\"排除原地交换与负号标记，\"只用常数额外空间\"排除哈希表计数，排序既会修改数组又需 O(nlogn)——因此只剩 Floyd 判圈（O(n)）与二分计数（O(nlogn)，按 [1,mid] 内元素个数是否超过 mid 判断重复在哪一半）两条路。\n- 第一段必须用 do-while：快慢指针起点相同，要先走再比较；找环入口时两指针必须同速（各走一步），这是 Floyd 定理的结论。\n- 起点取下标 0 而非 nums[0]：0 不在值域 [1,n] 内，保证从 0 出发必然先走一段\"尾巴\"再进环，且环入口就是重复数。",
+      "code": "class Solution {\npublic:\n    int findDuplicate(vector<int>& nums) {\n        // 视作链表 i -> nums[i]：重复数 = 环的入口，Floyd 判圈\n        int slow = 0, fast = 0;\n        do {\n            slow = nums[slow];           // 慢指针走一步\n            fast = nums[nums[fast]];     // 快指针走两步\n        } while (slow != fast);\n        slow = 0;                        // 一只指针回到起点\n        while (slow != fast) {           // 同速前进，再次相遇即环入口\n            slow = nums[slow];\n            fast = nums[fast];\n        }\n        return slow;\n    }\n};",
+      "updatedAt": "2026-09-26T11:34:27.742Z"
     }
   ],
   "deleted": {}
