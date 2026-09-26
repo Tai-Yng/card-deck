@@ -581,6 +581,7 @@
     review.revealed = false;
     review.stats = { good: 0, ok: 0, bad: 0 };
     review.badIds = [];
+    review.undoStack = [];
     review.active = true;
     renderReviewCard();
   }
@@ -629,6 +630,7 @@
   function rateReview(rate) {
     if (!review.active || !review.revealed || review.idx >= review.queue.length) return;
     const c = review.queue[review.idx];
+    review.undoStack.push({ id: c.id, idx: review.idx, prevReview: c.review ? { box: c.review.box, due: c.review.due, last: c.review.last } : null, rate: rate });
     c.review = nextReview(c.review, rate, Date.now());
     review.stats[rate]++;
     if (rate === 'bad') review.badIds.push(c.id);
@@ -639,6 +641,26 @@
     updateReviewBadge();
     if (review.idx >= review.queue.length) renderReviewDone();
     else renderReviewCard();
+  }
+
+  function undoReview() {
+    if (!review.active || !review.undoStack.length) return;
+    const e = review.undoStack.pop();
+    const c = store.data.cards.find((x) => x.id === e.id);
+    if (c) {
+      if (e.prevReview) c.review = e.prevReview;
+      else delete c.review;
+    }
+    review.stats[e.rate]--;
+    if (e.rate === 'bad') {
+      const bi = review.badIds.lastIndexOf(e.id);   // 重刷轮内可能多条，只摘本次
+      if (bi !== -1) review.badIds.splice(bi, 1);
+    }
+    review.idx = e.idx;          // 用入栈时下标定位（跳过卡不进栈，栈长≠idx）
+    review.revealed = true;
+    saveData();
+    updateReviewBadge();
+    renderReviewCard();
   }
 
   function skipReview() {
@@ -660,6 +682,7 @@
         '<div class="rstat"><b>' + s.bad + '</b><span>不会</span></div>' +
       '</div>' +
       (review.badIds.length ? '<button class="btn primary reveal-btn" data-ract="redo" type="button">重刷不会的（' + review.badIds.length + ' 张）</button>' : '') +
+      (review.undoStack.length ? '<button class="btn reveal-btn" data-ract="undo" type="button" style="margin-top:10px">↩ 撤销上一次评分</button>' : '') +
       '<button class="btn reveal-btn" data-ract="done" type="button" style="margin-top:10px">完成</button>' +
       '</div>';
     render();
@@ -669,6 +692,7 @@
   function endReviewSession() {
     if (!review.active) return;
     review.active = false;
+    review.undoStack = [];
     const cfg = GH.cfg();
     if (store.dirty && cfg && cfg.token && cfg.owner && cfg.repo) syncAll(false);
   }
@@ -682,6 +706,7 @@
     else if (act === 'random') startReview('random');
     else if (act === 'reveal') revealAnswer();
     else if (act === 'skip') skipReview();
+    else if (act === 'undo') undoReview();
     else if (act === 'redo') startReview('bad');
     else if (act === 'done') { endReviewSession(); closeModals(); }
   }
@@ -806,6 +831,7 @@
         if (e.key === 'Enter') { e.preventDefault(); startReview('due'); }
         return;
       }
+      if (review.active && e.key === 'Backspace') { e.preventDefault(); undoReview(); return; }
       if (!review.revealed && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); revealAnswer(); return; }
       if (review.revealed && (e.key === '1' || e.key === '2' || e.key === '3')) {
         e.preventDefault();
