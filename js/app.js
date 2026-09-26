@@ -667,10 +667,22 @@
       '<div class="cmeta"><span class="mdot lv' + masteryLevel(c) + '"></span>' + tags + '</div>';
     let content = '';
     if (review.stage === 0) {
-      content = '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
+      content = c.body
+        ? '<div class="reveal-box" data-ract="reveal">' +
+            '<div class="rv-skel"><i></i><i></i><i></i><i></i><i></i></div>' +
+            '<span class="rv-label">👁 点击显示思路</span>' +
+          '</div>'
+        : '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
     } else {
       if (c.body) content += '<p class="cbody open">' + esc(c.body) + '</p>';
-      if (review.stage === 1) content += '<div class="rhint">对照思路，现在在心里写出代码 ✍️</div>';
+      if (review.stage === 1) {
+        content += c.code
+          ? '<div class="reveal-box rv-code" data-ract="reveal">' +
+              '<div class="rv-skel"><i></i><i></i><i></i><i></i><i></i></div>' +
+              '<span class="rv-label">👁 点击显示答案</span>' +
+            '</div>'
+          : '<div class="rhint">对照思路，现在在心里写出代码 ✍️</div>';
+      }
       if (review.stage >= 2 && c.code) content += '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>';
     }
     const undoBtn = review.undoStack.length
@@ -682,9 +694,8 @@
           '<button class="rate ok" data-rate="ok" type="button">模糊<small>明天</small></button>' +
           '<button class="rate good" data-rate="good" type="button">认识<small>' + RV_DAYS[Math.min(6, ((c.review && c.review.box) || 0) + 1) - 1] + '天后</small></button>' +
         '</div>'
-      : '<button class="btn primary reveal-btn" data-ract="reveal" type="button">' + (review.stage === 0 && c.body ? '显示思路（空格）' : '显示答案（空格）') + '</button>' +
-        '<button class="btn reveal-btn" data-ract="skip" type="button" style="margin-top:10px">跳过这张（→）</button>';
-    const kbd = '<p class="rkbd">快捷键：空格 思路→答案 · 1 / 2 / 3 评分 · → 跳过 · Backspace 撤销 · Esc 退出</p>';
+      : '<button class="btn reveal-btn" data-ract="skip" type="button">跳过这张（→）</button>';
+    const kbd = '<p class="rkbd">快捷键：空格 显示思路/答案 · 1 / 2 / 3 评分 · → 跳过 · Backspace 撤销 · Esc 退出</p>';
     $('#review-sheet').innerHTML =
       '<div class="review-scroll">' + head + content + '</div>' +
       '<div class="review-actions">' + undoBtn + actions + kbd + '</div>';

@@ -245,6 +245,40 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Con
 .rate.bad { background: linear-gradient(180deg, #ff6b63, #e5483f); }
 .rkbd { text-align: center; font-size: 11.5px; opacity: .5; margin: 14px 0 0; }
 
+/* 揭示方框：骨架占位（真实内容不进 DOM），点击后渲染揭示 */
+.reveal-box {
+  position: relative; margin: 10px 0 4px; border-radius: 16px; overflow: hidden;
+  border: 1px dashed rgba(120, 130, 160, .45); cursor: pointer;
+  transition: border-color .15s ease;
+}
+.reveal-box:hover { border-color: rgba(10, 132, 255, .55); }
+.reveal-box .rv-skel { padding: 22px 18px; display: flex; flex-direction: column; gap: 12px; }
+.reveal-box .rv-skel i { display: block; height: 12px; border-radius: 6px; background: rgba(120, 130, 160, .26); }
+.reveal-box .rv-skel i:nth-child(1) { width: 32%; }
+.reveal-box .rv-skel i:nth-child(2) { width: 94%; }
+.reveal-box .rv-skel i:nth-child(3) { width: 88%; }
+.reveal-box .rv-skel i:nth-child(4) { width: 91%; }
+.reveal-box .rv-skel i:nth-child(5) { width: 58%; }
+.reveal-box.rv-code .rv-skel { padding: 18px; gap: 10px; }
+.reveal-box.rv-code .rv-skel i { height: 10px; background: rgba(120, 130, 160, .2); }
+.reveal-box.rv-code .rv-skel i:nth-child(1) { width: 26%; }
+.reveal-box.rv-code .rv-skel i:nth-child(2) { width: 78%; }
+.reveal-box.rv-code .rv-skel i:nth-child(3) { width: 92%; }
+.reveal-box.rv-code .rv-skel i:nth-child(4) { width: 64%; }
+.reveal-box.rv-code .rv-skel i:nth-child(5) { width: 40%; }
+.reveal-box .rv-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 8px 18px; border-radius: 999px; font-weight: 600; font-size: 14px; color: #3a4658;
+  background: rgba(255, 255, 255, .75); box-shadow: 0 2px 12px rgba(31, 41, 90, .16);
+  white-space: nowrap; transition: color .15s ease, box-shadow .15s ease;
+}
+.reveal-box:hover .rv-label { color: #0a6bff; box-shadow: 0 2px 14px rgba(10, 107, 255, .3); }
+html.theme-dark .reveal-box { border-color: rgba(120, 130, 160, .35); }
+html.theme-dark .reveal-box:hover { border-color: rgba(10, 132, 255, .5); }
+html.theme-dark .reveal-box .rv-skel i { background: rgba(120, 130, 160, .18); }
+html.theme-dark .reveal-box .rv-label { color: #aebacd; background: rgba(28, 30, 40, .8); box-shadow: 0 2px 12px rgba(0, 0, 0, .4); }
+html.theme-dark .reveal-box:hover .rv-label { color: #9cd0ff; }
+
 /* 掌握度圆点：灰=新卡 红/黄/绿=复习阶段 */
 .mdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .mdot.lv0 { background: rgba(120, 130, 160, .45); }
