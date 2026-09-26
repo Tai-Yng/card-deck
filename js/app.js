@@ -536,7 +536,7 @@
   }
 
   /* ---------- 复习模式 ---------- */
-  const review = { active: false, queue: [], idx: 0, revealed: false, stats: { good: 0, ok: 0, bad: 0 }, badIds: [] };
+  const review = { active: false, queue: [], idx: 0, revealed: false, stats: { good: 0, ok: 0, bad: 0 }, badIds: [], undoStack: [] };
 
   function updateReviewBadge() {
     const el = $('#review-count');
@@ -558,6 +558,7 @@
     const s = reviewStats(store.data.cards, new Date().toISOString());
     const nothing = (s.due + s.fresh) === 0;
     $('#review-sheet').innerHTML =
+      '<div class="review-scroll">' +
       '<h3 class="rtitle">复习</h3>' +
       '<div class="rstats">' +
         '<div class="rstat"><b>' + s.due + '</b><span>待复习</span></div>' +
@@ -566,7 +567,8 @@
       '</div>' +
       '<button class="btn primary reveal-btn" data-ract="start" type="button"' + (nothing ? ' disabled' : '') + '>开始复习（到期 + 新卡）</button>' +
       '<button class="btn reveal-btn" data-ract="random" type="button" style="margin-top:10px">随机抽卡（自由复习）</button>' +
-      '<p class="rkbd">间隔复习：认识 → 间隔逐级加长（1/2/4/7/15/30 天）· 模糊 / 不会 → 明天再见</p>';
+      '<p class="rkbd">间隔复习：认识 → 间隔逐级加长（1/2/4/7/15/30 天）· 模糊 / 不会 → 明天再见</p>' +
+      '</div>';
   }
 
   function startReview(mode) {
@@ -593,23 +595,29 @@
       '<div class="rprog"><div class="rprog-in" style="width:' + pct + '%"></div></div>' +
       '<div class="chead"><h3 class="rtitle">' + esc(c.title) + '</h3>' + diff + '</div>' +
       '<div class="cmeta"><span class="mdot lv' + masteryLevel(c) + '"></span>' + tags + '</div>';
-    let body;
+    let content;
     if (!review.revealed) {
-      body = '<div class="rhint">先自己在心里过一遍思路 ✍️</div>' +
-        '<button class="btn primary reveal-btn" data-ract="reveal" type="button">显示答案（空格）</button>' +
-        '<button class="btn reveal-btn" data-ract="skip" type="button" style="margin-top:10px">跳过这张（→）</button>';
+      content = '<div class="rhint">先自己在心里过一遍思路 ✍️</div>';
     } else {
       const nb = Math.min(6, ((c.review && c.review.box) || 0) + 1);
-      body = (c.body ? '<p class="cbody open">' + esc(c.body) + '</p>' : '') +
-        (c.code ? '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>' : '') +
-        '<div class="rate-row">' +
+      content = (c.body ? '<p class="cbody open">' + esc(c.body) + '</p>' : '') +
+        (c.code ? '<div class="codewrap"><div class="codebar"><span class="dots"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span><span class="langname">' + esc(LANG_LABEL[c.lang] || c.lang || '文本') + '</span></div><pre class="code"><code>' + hl(c.code, c.lang) + '</code></pre></div>' : '');
+    }
+    const undoBtn = review.undoStack.length
+      ? '<button class="undo-btn" data-ract="undo" type="button">↩ 撤销上一次评分</button>'
+      : '';
+    const actions = review.revealed
+      ? '<div class="rate-row">' +
           '<button class="rate bad" data-rate="bad" type="button">不会<small>明天</small></button>' +
           '<button class="rate ok" data-rate="ok" type="button">模糊<small>明天</small></button>' +
-          '<button class="rate good" data-rate="good" type="button">认识<small>' + RV_DAYS[nb - 1] + '天后</small></button>' +
-        '</div>';
-    }
-    body += '<p class="rkbd">快捷键：空格 显示答案 · 1 / 2 / 3 评分 · → 跳过 · Esc 退出</p>';
-    $('#review-sheet').innerHTML = head + body;
+          '<button class="rate good" data-rate="good" type="button">认识<small>' + RV_DAYS[Math.min(6, ((c.review && c.review.box) || 0) + 1) - 1] + '天后</small></button>' +
+        '</div>'
+      : '<button class="btn primary reveal-btn" data-ract="reveal" type="button">显示答案（空格）</button>' +
+        '<button class="btn reveal-btn" data-ract="skip" type="button" style="margin-top:10px">跳过这张（→）</button>';
+    const kbd = '<p class="rkbd">快捷键：空格 显示答案 · 1 / 2 / 3 评分 · → 跳过 · Backspace 撤销 · Esc 退出</p>';
+    $('#review-sheet').innerHTML =
+      '<div class="review-scroll">' + head + content + '</div>' +
+      '<div class="review-actions">' + undoBtn + actions + kbd + '</div>';
   }
 
   function revealAnswer() {
@@ -644,6 +652,7 @@
   function renderReviewDone() {
     const s = review.stats;
     $('#review-sheet').innerHTML =
+      '<div class="review-scroll">' +
       '<h3 class="rtitle" style="text-align:center">本轮完成 🎉</h3>' +
       '<div class="rstats">' +
         '<div class="rstat"><b>' + s.good + '</b><span>认识</span></div>' +
@@ -651,7 +660,8 @@
         '<div class="rstat"><b>' + s.bad + '</b><span>不会</span></div>' +
       '</div>' +
       (review.badIds.length ? '<button class="btn primary reveal-btn" data-ract="redo" type="button">重刷不会的（' + review.badIds.length + ' 张）</button>' : '') +
-      '<button class="btn reveal-btn" data-ract="done" type="button" style="margin-top:10px">完成</button>';
+      '<button class="btn reveal-btn" data-ract="done" type="button" style="margin-top:10px">完成</button>' +
+      '</div>';
     render();
   }
 

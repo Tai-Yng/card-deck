@@ -205,8 +205,20 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Con
 #toast.show { opacity: 1; transform: translateX(-50%); }
 #toast.err { background: rgba(200, 40, 34, .92); }
 
-/* ---------- 复习模式 ---------- */
-.review-sheet { width: min(600px, 100%); }
+/* ---------- 复习模式（内容区滚动，操作区固定底部，任意视口评分键免滚动） ---------- */
+.review-sheet {
+  width: min(600px, 100%);
+  display: flex; flex-direction: column;
+  overflow: hidden;               /* 覆盖 .sheet 的 overflow:auto，滚动移交内容区 */
+}
+.review-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.review-actions { flex: 0 0 auto; }
+.undo-btn {
+  display: block; margin: 0 auto 2px; padding: 4px 10px;
+  font: inherit; font-size: 12.5px; background: none; border: none;
+  color: #0a6bff; cursor: pointer;
+}
+.undo-btn:hover { text-decoration: underline; }
 .rcount { display: flex; justify-content: space-between; font-size: 12px; opacity: .6; margin-bottom: 6px; }
 .rprog { height: 5px; border-radius: 3px; background: rgba(120, 130, 160, .25); overflow: hidden; margin-bottom: 16px; }
 .rprog-in { height: 100%; width: 0; background: linear-gradient(90deg, #0a84ff, #5e5ce6); border-radius: 3px; transition: width .25s ease; }
@@ -259,6 +271,7 @@ html.theme-dark .chip.hard { background: rgba(255, 69, 58, .2); color: #ff8a80; 
 html.theme-dark .search input { background: rgba(255, 255, 255, .07); }
 html.theme-dark .modal { background: rgba(0, 0, 0, .5); }
 html.theme-dark .rstat { background: rgba(10, 132, 255, .14); border-color: rgba(10, 132, 255, .22); }
+html.theme-dark .undo-btn { color: #9cd0ff; }
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 720px) {
