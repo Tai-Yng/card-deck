@@ -1,5 +1,5 @@
 /* Service Worker：离线缓存静态资源（data/cards.json 走网络优先） */
-const CACHE = 'carddeck-v5';
+const CACHE = 'carddeck-v6';
 const ASSETS = [
   './', './index.html', './css/style.css',
   './js/app.js', './js/github.js', './js/highlight.js', './js/seed.js',
