@@ -1,3 +1,8 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# 工作流内部产物（本地保留，不上传）
+.zcode/
+openspec/
+docs/
